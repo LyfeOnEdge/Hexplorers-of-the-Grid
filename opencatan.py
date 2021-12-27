@@ -31,11 +31,11 @@ def calc_hex_grid_points_from_radius(r = 1):
 			num_hexagons = r + (num_rows - row_num)
 		column = []
 		if row_num >= r:
-			x_offset = (row_num * (sqrt3 - sqrt3/2))
+			x_offset = (row_num * (sqrt3/2))
 		else:
-			x_offset = -((row_num - 2 * r) * (sqrt3 - sqrt3/2))
+			x_offset = -((row_num - 2 * r) * (sqrt3/2))
 		x_offset -= (sqrt3) * 1.5 * r
-		y_offset = ((r - row_num + 1) * 1.5) - 1.5
+		y_offset = ((r - row_num) * 1.5)
 		for h in range(num_hexagons):
 			column.append(((x_offset + (sqrt3*h)), y_offset))
 
