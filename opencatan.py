@@ -1,5 +1,4 @@
 import math, json, random
-import numpy as np
 import ursina
 
 def get_random_color():
