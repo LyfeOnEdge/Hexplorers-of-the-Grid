@@ -1,3 +1,5 @@
+![Hexagons are the Bestagons](https://github.com/LyfeOnEdge/OpenCatan/blob/main/Capture.PNG?raw=True)
+
 # OpenCatan
  An attempt at an open-source clone of The Settlers of Catan
 
