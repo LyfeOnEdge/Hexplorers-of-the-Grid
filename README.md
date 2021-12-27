@@ -4,7 +4,8 @@
  An attempt at an open-source clone of The Settlers of Catan
 
 ## About
- - Uses the Ursina engine
+ - Uses the Ursina Engine for graphics
+ - Uses OpenSimplex for terrain generation
  - Currently just lays out hexagons
 
 ## Installation
