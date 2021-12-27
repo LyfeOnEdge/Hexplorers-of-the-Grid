@@ -60,14 +60,10 @@ app = ursina.Ursina()
 
 center = ursina.Entity(model='sphere', color=ursina.color.orange, scale=0.1, origin = (0,0), y = 0)
 
-
-
-#This is the actual draw function
-POSX = 0
-POSY = 0
-RADIUS = 25
-SCALE = 0.1
-
+POSX = 0 #X Offset of grid origin
+POSY = 0 #Y Offset of grid origin
+RADIUS = 25 #Number of hexagons in radius
+SCALE = 0.1 #Scale to draw the figure
 draw_honeycomb((POSX, POSY), RADIUS, SCALE)
 
 app.run()
