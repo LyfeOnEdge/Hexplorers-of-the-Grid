@@ -7,7 +7,7 @@ def get_random_color():
 
 sqrt3 = math.sqrt(3)
 def calc_hexagon_verts_from_center_point(x_offset, y_offset, x,y,r,z=0):
-	x*=r
+	x*=r #Scale
 	y*=r
 	a = (x, r + y, z)
 	b = (sqrt3*r*0.5 + x, r*0.5 + y, z)
@@ -59,9 +59,16 @@ class Tile(ursina.Entity):
 		
 app = ursina.Ursina()
 
-draw_honeycomb((0,0), 30, 0.085)
-
 center = ursina.Entity(model='sphere', color=ursina.color.orange, scale=0.1, origin = (0,0), y = 0)
 
-# start running the game
+
+
+#This is the actual draw function
+POSX = 0
+POSY = 0
+RADIUS = 25
+SCALE = 0.1
+
+draw_honeycomb((POSX, POSY), RADIUS, SCALE)
+
 app.run()
