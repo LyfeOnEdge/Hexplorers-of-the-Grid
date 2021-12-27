@@ -20,7 +20,7 @@ def _calc_hexagon_verts(x_offset, z_offset, x,z,r,y=0, terrain_amplification = 1
 	z*=r
 	hr = r*0.5
 	sqrt3hr = sqrt3*hr
-	verts = [(v[0]+x_offset,y+get_heightmap(v[0]*terrain_scale,v[1]*terrain_scale)*terrain_amplification,v[1]+z_offset) for v in[
+	verts = [(v[0]+x_offset,y+get_heightmap(v[0]/terrain_scale,v[1]/terrain_scale)*terrain_amplification,v[1]+z_offset) for v in[
 		(x, r + z),
 		(sqrt3hr + x, hr + z),
 		(sqrt3hr + x, -hr + z),
