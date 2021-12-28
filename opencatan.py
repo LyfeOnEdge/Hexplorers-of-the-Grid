@@ -2,6 +2,8 @@ import math, json, random
 import ursina
 from opensimplex import OpenSimplex
 
+from catanengine import pick_random_resource_type, get_resource_color
+
 NOISE_DAMPENING = 1
 random.seed(random.random())
 generator = OpenSimplex(seed=3*int(random.uniform(0,50))).noise2
@@ -20,7 +22,7 @@ def _calc_hexagon_verts(x_offset, z_offset, x,z,r,y=0, terrain_amplification = 1
 	z*=r
 	hr = r*0.5
 	sqrt3hr = sqrt3*hr
-	verts = [(v[0]+x_offset,y+get_heightmap(v[0]/terrain_scale,v[1]/terrain_scale)*terrain_amplification,v[1]+z_offset) for v in[
+	verts = [(v[0]+x_offset,y+get_heightmap(v[0]/terrain_scale,v[1]/terrain_scale)*terrain_amplification*0.5,v[1]+z_offset) for v in[
 		(x, r + z),
 		(sqrt3hr + x, hr + z),
 		(sqrt3hr + x, -hr + z),
@@ -61,13 +63,16 @@ def draw_honeycomb(position,radius,scale,terrain_amplification,terrain_scale):
 	origin_x, origin_z = position
 	points = calc_hex_grid_points_from_radius(radius)
 	tiles=[]
+	unique_verticies = set()
 	for row in points:
 		for x,z in row:
+			color = get_resource_color(pick_random_resource_type())
 			p = calc_hexagon_verts_from_center_point(origin_x, origin_z, x, z, scale, 0, terrain_amplification=terrain_amplification,terrain_scale=terrain_scale)
 			linepoints = calc_hexagon_outline_verts_from_center_point(origin_x, origin_z, x, z, scale, 0, terrain_amplification=terrain_amplification,terrain_scale=terrain_scale)
-			t = Tile(p, ursina.color.rgb(255,255,255))
-			t.outline = ursina.Entity(model=ursina.Mesh(vertices=(linepoints[0]), triangles=linepoints[1], mode='line', thickness=3*int(min(1,scale))), color=ursina.color.rgb(0,0,0), y = 0.02)
+			t = Tile(p, ursina.color.colors[color])
+			t.outline = ursina.Entity(model=ursina.Mesh(vertices=(linepoints[0]), triangles=linepoints[1], mode='line', thickness=int(3*min(1,scale))), color=ursina.color.rgb(0,0,0), y = 0.02)
 			tiles.append(t)
+			
 	return tiles
 
 class Tile(ursina.Entity):
@@ -97,11 +102,10 @@ class App(ursina.Ursina):
 	def __init__(self, *args, **kwargs):
 		ursina.Ursina.__init__(self, *args, **kwargs)
 		self.origin = ursina.Entity(model='sphere', color=ursina.color.rgb(0,0,0), scale=0.000001, origin = (0,0), x=0,y=0,z=0)
-		self.camera_pivot = ursina.Entity(parent=self.origin, y=20)
 		self.editor_camera = ursina.EditorCamera(enabled=False, ignore_paused=True)
 		self.editor_camera.enabled = True
 
-		self.radius_slider = ursina.Slider(0, 25, default=0, step=1, text='Radius', parent=ursina.camera.ui, eternal = True, position = (-0.75,0.45))
+		self.radius_slider = ursina.Slider(0, 25, default=3, step=1, text='Radius', parent=ursina.camera.ui, eternal = True, position = (-0.75,0.45))
 		self.radius_slider.on_value_changed = self.set_radius_multiplier
 
 		self.scale_slider = ursina.Slider(0.1, 25, default=1, step=0.1, text='Scale', parent=ursina.camera.ui, eternal = True, position = (-0.75,0.375))
@@ -118,11 +122,10 @@ class App(ursina.Ursina):
 		self.map_entities = []
 
 		self.scale = 1
-		self.radius = 0
+		self.radius = 3
 		self.terrain_amp = 1
 		self.terrain_scale=1
 		self.generate_map()
-		self.editor_camera.y += 3
 
 	def set_radius_multiplier(self):
 		self.radius = self.radius_slider.value
@@ -154,7 +157,7 @@ class App(ursina.Ursina):
 		self.map_entities = draw_honeycomb((0, 0), self.radius, self.scale, self.terrain_amp, self.terrain_scale)
 
 app = App()
-# ursina.camera.orthographic = False
+
 app.run()
 
 
