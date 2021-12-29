@@ -4,6 +4,8 @@ from opensimplex import OpenSimplex
 
 from catanengine import pick_random_resource_type, get_resource_color
 
+from UrsinaLighting import LitObject, LitPointLight
+
 NOISE_DAMPENING = 1
 random.seed(random.random())
 # generator = OpenSimplex(seed=3*int(random.uniform(0,50))).noise2
@@ -44,7 +46,7 @@ def apply_island_clamp_function(height, scale, max_radius, current_radius, x):
 		result = math.sqrt(abs(numerator**0.8/denomenator))
 
 		#Might be the issue
-		result -= 0.55 * (current_radius/max_radius) 
+		result -= 0.15 * (current_radius/max_radius) 
 
 		result *= ISLAND_HEIGHT_MULTIPLIER
 		result = abs(result)
@@ -258,8 +260,19 @@ def draw_honeycomb(position,radius,scale,terrain_amplification,terrain_scale):
 		row_index += 1
 
 	#Draw Water
-	p = _calc_water_hexagon_verts(radius, scale)
-	water = WaterTile((0,-0.3*scale,0), p)
+	# p = _calc_water_hexagon_verts(radius, scale)
+	# water = WaterTile((0,-0.3*scale,0), p)
+
+	rscale = 12*radius*scale
+	square = [(-rscale,-0.2,rscale),(rscale,-0.2,rscale),(rscale,-0.2,-rscale),(-rscale,-0.2,-rscale)]
+	tris = [(3,2,1),(3,1,0)]
+	water = LitObject(position=(0,0,0),model=ursina.Mesh(vertices=square, triangles=tris, mode='ngon'), color=ursina.color.colors["blue"])
+
+	lightsource = LitPointLight(position = ursina.Vec3(0,5,0), color = ursina.color.colors["white"], range = 40, intensity = 1)
+	skyboxTexture = ursina.Texture("textures/skybox.jpg")
+
+	#skybox
+	skybox = ursina.Sky(model = "sphere", double_sided = True, texture = skyboxTexture, rotation = (0, 90, 0))
 
 	return tiles
 
