@@ -1,0 +1,11 @@
+{
+    "devMode": true,
+    "appName": "Plan-O-Grab",
+    "keep_topmost": false,
+    "borderless": false,
+    "fullscreen": false,
+    "heightmap_noise_dampening": 1,
+    "water_scale": 8,
+    "island_height_multiplier": 1,
+    "shore_drop": 1
+}

@@ -9,6 +9,10 @@
  - Currently just lays out hexagons
  - Water Shaders by Tusnad30: https://github.com/Tusnad30/Ursina-Lighting
 
+## Goals
+ - Seeded Terrain Generation
+
+
 ## Installation
  - Install Python
  - Clone this repo and CD
