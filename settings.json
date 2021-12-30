@@ -7,5 +7,9 @@
     "heightmap_noise_dampening": 1,
     "water_scale": 8,
     "island_height_multiplier": 1,
-    "shore_drop": 1
+    "shore_drop": 1,
+    "default_radius": 15,
+    "default_scale": 1,
+    "default_terrain_amp": 1,
+    "default_terrain_scale": 1
 }
