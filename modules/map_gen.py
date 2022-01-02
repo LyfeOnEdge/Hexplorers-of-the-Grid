@@ -1,53 +1,29 @@
-import math
+import math, random, json
+from PIL import Image, ImageOps
+import numpy as np
 import ursina
 from .settings import settings
 from .catanengine import get_resource_color, pick_random_resource_type
 from .noise_gen import noiseGenerator
-from .entities import Tile, ShoreTile, WaterTile
-from .UrsinaLighting import LitObject, LitPointLight
+from .texture_gen import TextureMaker
+from .entities import BoardTile, ShoreTile, LandMasses, Edge, Node, Tile
+from .UrsinaLighting import LitObject, LitPointLight, LitInit
 
-sqrt3 = math.sqrt(3)
+TM = TextureMaker()
+#These get calculated a lot
+sqrt3 = math.sqrt(3.0)
+halfsqrt3 = math.sqrt(3.0)/2.0
 
-#My "Volcano Island" layout secret sauce
-def apply_island_clamp_function(height, scale, max_radius, current_radius, x):
-	if max_radius and max_radius > 2:
-		numerator = (current_radius - max_radius)**3
-		denomenator = (current_radius - (max_radius+3*scale)**2)
-		result = math.sqrt(abs(numerator**0.8/denomenator))
-		result -= 0.15 * (current_radius/max_radius) 
-		result *= settings.island_height_multiplier
-		result = abs(result)
-		result *= height
-	else:
-		result = 1
-	return result
+def _calc_hexagon_verts(map_radius = 1):
+	return [[0,1,0],[0,1,1],[halfsqrt3,1,0.5],[halfsqrt3,1,-0.5],[0,1,-1],[-halfsqrt3,1,-0.5],[-halfsqrt3,1,0.5]]
 
-def _calc_hexagon_verts(position,r,map_radius, terrain_amplification = 1,terrain_scale=1):
-	x,y,z=position
-	hr = r*0.5
-	sqrt3hr = sqrt3*hr
-	#N, NE, SE, S, SW, NW
-	hex_verts = [[0,0],[0, r],[sqrt3hr, hr],[sqrt3hr, -hr],[0, -r],[-sqrt3hr, -hr],[-sqrt3hr, hr]]
-	verts = []
-	for v in hex_verts:
-		height = noiseGenerator.get_heightmap((v[0]+x*r)/terrain_scale,(v[1]+z*r)/terrain_scale)*terrain_amplification*2.5
-		current_radius = math.sqrt((v[0]+x*r)*(v[0]+x*r)+(v[1]+z*r)*(v[1]+z*r))
-		verts.append(
-			[float("{:.4f}".format(v[0])),
-			float("{:.4f}".format(apply_island_clamp_function(height, r, map_radius, current_radius,v[0]+x*r))),
-			float("{:.4f}".format(v[1]))]
-		)
-	return verts
-
+#Draws a 'circle' of tris around a center point
 def calc_hexagon_verts_from_center_point(*args, **kwargs):
-	#((0,6,5),(0,5,4),(0,4,3),(0,3,2),(0,2,1),(0,1,6))
-	
-	#(0,1,2,0,2,3,0,3,4,0,4,5,0,5,6,0,6,1)	
-	return (_calc_hexagon_verts(*args,**kwargs),(0,6,5,0,5,4,0,4,3,0,3,2,0,2,1,0,1,6))
-
-def calc_hexagon_outline_verts_from_center_point(*args, **kwargs): #Ignores the center vert and just draws the shape with lines
-	return (_calc_hexagon_verts(*args,**kwargs)[1:],((0,1,2,3,4,5,0),)) 
-
+	return _calc_hexagon_verts(*args,**kwargs),  (0,6,5,0,5,4,0,4,3,0,3,2,0,2,1,0,1,6)
+#Ignores the center vert and just draws the shape with lines
+def calc_hexagon_outline_verts_from_center_point(*args, **kwargs):
+	return _calc_hexagon_verts(*args,**kwargs)[1:],  ((0,1,2,3,4,5,0),)
+#Calculates all the centerpoints for hexagons in a given radius with r=0 being just the center hexagon
 def calc_hex_grid_points_from_radius(r = 1):
 	num_rows = 2*r + 1
 	rows = []
@@ -56,21 +32,54 @@ def calc_hex_grid_points_from_radius(r = 1):
 			num_hexagons = r + row_num + 1
 		else:
 			num_hexagons = r + (num_rows - row_num)
-		column = []
 		if row_num >= r:
 			x_offset = (row_num * (sqrt3/2))
 		else:
 			x_offset = -((row_num - 2 * r) * (sqrt3/2))
 		x_offset -= (sqrt3) * 1.5 * r
 		z_offset = ((r - row_num) * 1.5)
+		column = []
 		for h in range(num_hexagons):
 			column.append(((x_offset + (sqrt3*h)), z_offset))
-
 		rows.append(column)
 	return rows
 
+#Prevents island from spawning near the center of the map
+def apply_decorative_island_clamp_function(pos_x,pos_z):
+	rel_x = float(pos_x) - (float(settings.island_resolution)/2)
+	rel_z = float(pos_z) - (float(settings.island_resolution)/2)
+	if abs(rel_x) < float(settings.island_resolution)*0.2 and abs(rel_z) < float(settings.island_resolution*0.2):
+		rx = rel_x/(float(settings.island_resolution)*0.2)
+		rz = rel_z/(float(settings.island_resolution)*0.2)
+		ratio = math.sqrt(rx*rx+rz*rz)
+	else:
+		ratio = 1.0
+	return min(1.0, ratio)
+
+def generate_island_mesh(scale):
+	resolution = settings.island_resolution
+	arr = np.full([resolution, resolution, 3], (200,200,160), dtype=np.uint8)
+	heightmap=[]
+	for x in range(resolution):
+		row=[]
+		for z in range(resolution):
+			y=noiseGenerator.get_scaled_heightmap(float(x),float(z),resolution/settings.island_scale)
+			y*=apply_decorative_island_clamp_function(x,z)
+			row.append(y)
+			if y > 0.45: arr[x][z] = (0,160,30)
+			elif y > 0.3: arr[x][z] = (180,180,110)
+			elif y > 0.15: arr[x][z] = (100,100,50)
+		heightmap.append(row)
+	texture =ImageOps.flip(Image.fromarray(np.swapaxes(np.uint8(arr),0,1)).convert('RGB').rotate(90))
+
+	texname = f"temp_textures/{random.randint(0,999999)}.png"
+	texture.save(texname)
+	landmass = LandMasses(heightmap, scale, texname)
+
+	return heightmap
+
 class MapMaker(ursina.Entity):
-	def __init__(self, position, scale, radius, terrain_amplification, terrain_scale):
+	def __init__(self, game, position, radius):
 		ursina.Entity.__init__(self, parent=ursina.scene, eternal=True)
 		#object lists
 		self.tiles = []
@@ -78,14 +87,17 @@ class MapMaker(ursina.Entity):
 		self.shore = []
 		self.water = []
 		self.lighting = []
-
+		self.islands = []
+		self.game = game
 		self.origin_x, self.origin_z = position
-		self.map_scale = scale
 		self.map_radius = radius
-		self.terrain_amplification = terrain_amplification
-		self.terrain_scale = terrain_scale
+
+	def get_water_level(self):
+		return 0
 
 	def generate_map(self):
+		print(f"Generating Map")
+		noiseGenerator.regen(random.uniform(0,1))
 		if self.tiles:
 			try:
 				ursina.scene.clear()
@@ -95,29 +107,43 @@ class MapMaker(ursina.Entity):
 			self.grid = []
 			self.shore = []
 			self.water = []
-			self.lighting = []
 
+			for w in self.water: ursina.destroy(w)
+			for l in self.lighting: ursina.destroy(l)
+			ursina.destroy(self.light_controller)
+
+			self.lighting = []
+			self.islands = []
+		# ursina.scene.fog_density = (self.map_scale*self.map_radius*20, self.map_scale*self.map_radius*40)
 		island_center_points = calc_hex_grid_points_from_radius(self.map_radius)
+		if self.lighting:
+			try:
+				ursina.destroy(self.lighting)
+			except:
+				pass
+		self.light_controller = LitInit() #Enable lighting shader
+		self.make_board(island_center_points)
 		self.generate_island_tiles(island_center_points)
 		self.generate_tile_grid(island_center_points)
 		self.generate_island_shores(calc_hex_grid_points_from_radius(self.map_radius+1))
+		self.generate_scenery_islands()
 		self.generate_water()
+		self.generate_sky()
 		self.generate_lighting()
 		objects = []
-		for l in [self.tiles, self.grid, self.shore, self.water, self.lighting]:
-			for o in l:
-				objects.append(l)
+		for l in [self.tiles, self.grid, self.shore, self.water, self.lights]: objects.extend(l)
 		return objects
 
 	def generate_island_tiles(self, grid_points):
+		print("Generating Main Island Tiles")
 		self.tiles=[]
 		tile_parent = ursina.Entity(parent=self)
 		tile_count=0
 		for row in grid_points:
 			for x,z in row:
-				position=((self.origin_x+x*self.map_scale),0,(self.origin_z+z*self.map_scale))
-				p = calc_hexagon_verts_from_center_point((x, 0, z), self.map_scale, (self.map_scale+.5)*self.map_radius, terrain_amplification=self.terrain_amplification,terrain_scale=self.terrain_scale)
-				t = Tile(tile_parent, (x,z), self.map_scale, position, p, ursina.color.colors[get_resource_color(pick_random_resource_type())])
+				position=((self.origin_x+x),0,(self.origin_z+z))
+				p = _calc_hexagon_verts()
+				t = BoardTile(tile_parent, (x,z), p, ursina.color.colors[get_resource_color(pick_random_resource_type())])
 				self.tiles.append(t)
 				tile_count+=1
 		print(f"Generated {tile_count} tiles")
@@ -126,16 +152,17 @@ class MapMaker(ursina.Entity):
 		tile_parent.combine()
 
 	def generate_tile_grid(self, grid_points):
+		print("Generating Tile Grid")
 		self.grid=[]
 		for row in grid_points:
 			for x,z in row:
-				position=((self.origin_x+x*self.map_scale),0,(self.origin_z+z*self.map_scale))
-				p = calc_hexagon_outline_verts_from_center_point((x, 0, z), self.map_scale, (self.map_scale+.5)*self.map_radius, terrain_amplification=self.terrain_amplification,terrain_scale=self.terrain_scale)
+				position=((self.origin_x+x),0,(self.origin_z+z))
+				p = calc_hexagon_outline_verts_from_center_point(.5*self.map_radius)
 				t = ursina.Entity(parent=self, position=position, model=ursina.Mesh(vertices=(p[0]), triangles=p[1], mode='line', thickness=1), color=ursina.color.rgb(0,0,0), y = 0.02)
 				self.grid.append(t)
 
-
 	def generate_island_shores(self, grid_points):
+		print("Generating Island Shores")
 		#Calculate shore
 		#Systematically generate the hexagons we need
 		#and then drop their outermost points to
@@ -143,34 +170,88 @@ class MapMaker(ursina.Entity):
 		shore_parent = ursina.Entity(parent=self) 
 		self.shore = []
 		row_index = 0
+		r = self.map_radius
+		r += 1
 		for row in grid_points:
 			index = 0
 			for x,z in row:
-				position=((self.origin_x+x*self.map_scale),0,(self.origin_z+z*self.map_scale))
-				hex_verts, tris = calc_hexagon_verts_from_center_point((x, 0, z), self.map_scale, (self.map_scale+.5)*self.map_radius, terrain_amplification=self.terrain_amplification,terrain_scale=self.terrain_scale)
-				needed = False #If the hexagon is one of the needed ones
+				position=((self.origin_x+x),0,(self.origin_z+z))
+				hex_verts, tris = calc_hexagon_verts_from_center_point(.5*self.map_radius)
+				needed = False #If the hexagon is one of the needed ones (edges)
+				#Sets to ensure vertex translations are only applied once
 				verts_to_cliffdrop = set()
-				if row_index == self.map_radius or row_index == self.map_radius+1: verts_to_cliffdrop.update({1}) #Only flag needed if on either end, will flag below
+				verts_to_increase_x = set()
+				verts_to_increase_z = set()
+				verts_to_decrease_x = set()
+				verts_to_decrease_z = set()
+				if row_index == r:
+					verts_to_cliffdrop.update({1}) #Only flag needed if on either end, will flag below
 				if row_index == 0:#If in the top row
 					needed=True
 					verts_to_cliffdrop.update({6,1,2})
+					verts_to_increase_z.update({0,6,1,2})
 				if index == 0:
 					needed=True
-					if row_index < self.map_radius: verts_to_cliffdrop.update({5,6,1})#Top half
-					elif row_index == self.map_radius: verts_to_cliffdrop.update({5,6})#Top half
-					elif row_index > self.map_radius: verts_to_cliffdrop.update({4,5,6})#Bottom Half
+					if row_index < r:
+						verts_to_cliffdrop.update({5,6,1})#Top half
+						verts_to_decrease_x.update({0,5,6,1})
+						verts_to_increase_z.update({0,5,6,1})
+					elif row_index == r:
+						verts_to_cliffdrop.update({4,5,6,1})
+						verts_to_decrease_x.update({0,4,5,6,1})
+						verts_to_increase_z.update({0,5,6,1})
+						verts_to_decrease_z.update({4})
+					elif row_index > r:
+						verts_to_cliffdrop.update({4,5,6})#Bottom Half
+						verts_to_decrease_x.update({0,4,5,6})
+						verts_to_decrease_z.update({0,4,5,6})
+
 				elif index == len(row)-1:#If in the last column
 					needed=True
-					if row_index < self.map_radius: verts_to_cliffdrop.update({1,2,3})#Top half
-					elif row_index == self.map_radius: verts_to_cliffdrop.update({2,3})#Top half
-					elif row_index > self.map_radius: verts_to_cliffdrop.update({2,3,4})#Bottom Half
+					if row_index < r:
+						verts_to_cliffdrop.update({1,2,3})#Top half
+						verts_to_increase_x.update({0,1,2,3})
+						verts_to_increase_z.update({0,1,2,3})
+					elif row_index == r:
+						verts_to_cliffdrop.update({1,2,3,4})#Top half
+						verts_to_increase_x.update({0,1,2,3,4})
+						verts_to_decrease_z.update({0,2,3,4})
+						verts_to_increase_z.update({1})
+					elif row_index > r:
+						verts_to_cliffdrop.update({2,3,4})#Bottom Half
+						verts_to_increase_x.update({0,2,3,4})
+						verts_to_decrease_z.update({0,2,3,4})
+
 				if row_index == len(grid_points)-1:#If in the bottom row
 					needed=True
 					verts_to_cliffdrop.update({3,4,5})
+					verts_to_decrease_z.update({0,3,4,5})
+
 				if needed:
 					for v in verts_to_cliffdrop:
-						hex_verts[v][1] =-settings.shore_drop*self.map_scale
-					hex_verts[0][1] =-0.5*settings.shore_drop #Drop center of hexagon half way for slope
+						hex_verts[v][1] =-settings.shore_drop
+					for v in verts_to_increase_z:
+						mult = 1
+						if v == 0:
+							mult = 0.5
+						hex_verts[v][2] += mult
+					for v in verts_to_decrease_z:
+						mult = 1
+						if v == 0:
+							mult = 0.5
+						hex_verts[v][2] -= mult
+					for v in verts_to_increase_x:
+						mult = 1
+						if v == 0:
+							mult = 0.5
+						hex_verts[v][0] += mult
+					for v in verts_to_decrease_x:
+						mult = 1
+						if v == 0:
+							mult = 0.5
+						hex_verts[v][0] -= mult
+
+					hex_verts[0][1] =-settings.shore_drop/2.0 #Drop center of hexagon half way for slope
 					self.shore.append(ShoreTile(shore_parent, position, (hex_verts,((0,6,5),(0,5,4),(0,4,3),(0,3,2),(0,2,1),(0,1,6)))))
 				index += 1
 			row_index += 1
@@ -183,146 +264,193 @@ class MapMaker(ursina.Entity):
 		shore_parent.combine(ignore=ignorelist)
 
 	def generate_water(self):
-		rscale = 2*self.map_radius*self.map_scale
+		print("Generating Water")
+		rscale = 2*self.map_radius
 		self.water = []
-		for _x in range(-2,3):
-			for _z in range(-2,3):
+		for _x in range(-settings.water_subdivisions_per_axis_radius,settings.water_subdivisions_per_axis_radius+1):
+			for _z in range(-settings.water_subdivisions_per_axis_radius,settings.water_subdivisions_per_axis_radius+1):
 				self.water.append(
 					LitObject(
 						position=(
 							_x*rscale*settings.water_scale+self.origin_x,
-							-0.25*self.map_scale,
+							-(self.get_water_level()),
 							_z*rscale*settings.water_scale+self.origin_z,
 							),
 						model='quad',
 						rotation=(90,0,90),
 						scale=rscale*settings.water_scale,
-						color=ursina.color.rgb(60,100,240),
-						water=True
+						color=ursina.color.rgb(160,200,240),
+						water=True,
+						cubemapIntensity = 0.75,
+						ambientStrength = 0.75
 					)
 				)
 
+	def generate_sky(self):
+		print("Generating Sky")
+		skyboxTexture = ursina.Texture("textures/skybox.jpg")
+		self.sky = ursina.Sky(model = "sphere", double_sided = True, texture = skyboxTexture, rotation = (0, 90, 0))
+		# #skybox
+		# offset = 2*self.map_radius*self.map_scale*settings.water_scale*(2*settings.water_subdivisions_per_axis_radius+1)
+		# n_wall=ursina.Entity(position=(0,0,offset/2), model='quad',scale=offset, origin=(0,0,0), alpha=0.1)
+		# e_wall=ursina.Entity(position=(offset/2,0,0), model='quad',scale=offset, origin=(0,0,0), rotation = (0,90,0), alpha=0.1)
+		# s_wall=ursina.Entity(position=(0,0,-offset/2), model='quad',scale=offset, origin=(0,0,0), rotation = (0,180,0), alpha=0.1)
+		# w_wall=ursina.Entity(position=(-offset/2,0,0), model='quad',scale=offset, origin=(0,0,0), rotation = (0,270,0), alpha=0.1)
+		# sky=ursina.Entity(position=(0,offset/2,0), model='quad',scale=offset, origin=(0,0,0), rotation = (270,0,0))
+		# self.sky = [n_wall,e_wall,s_wall,w_wall,sky]
+
 	def generate_lighting(self):
-		self.lighting = [
-			LitPointLight(position = ursina.Vec3(0,self.map_scale,0), color = ursina.color.colors["white"], range = 40*self.map_scale, intensity = 2),
-			LitPointLight(position = ursina.Vec3(0,2*self.map_scale,0), color = ursina.color.colors["white"], range = 80*self.map_scale, intensity = 3)
+		print("Generating Lighting")
+		self.lights = [
+			LitPointLight(
+				position = ursina.Vec3(0,self.map_radius*(2*settings.water_subdivisions_per_axis_radius+1)*settings.water_scale,0),
+				color = ursina.color.colors["white"],
+				range = 3*self.map_radius*(2*settings.water_subdivisions_per_axis_radius+1)*settings.water_scale,
+				intensity = 100),
+			LitPointLight(position = ursina.Vec3(0,0.5*self.map_radius,0), color = ursina.color.colors["white"], range = 40*self.map_radius, intensity = 1,),
+			LitPointLight(position = ursina.Vec3(0,self.map_radius,0), color = ursina.color.colors["white"], range = 80*self.map_radius, intensity = 2)
 		]
 
-	def optimize(self):
-		pass
+	def generate_scenery_islands(self):
+		print("Generating Islands")
+		rscale = 2*self.map_radius*(2*settings.water_subdivisions_per_axis_radius+1)*settings.water_scale
+		self.islands = generate_island_mesh(rscale)
+
+	def toggle_water(self):
+		print("Toggled Water")
+		for e in self.water:
+			e.enabled = not e.enabled
+
+	def toggle_grid(self):
+		print("Toggled Grid")
+		for e in self.grid:
+			e.enabled = not e.enabled
+
+	def toggle_skybox(self):
+		print("Toggled Skybox")
+		self.sky.enabled = not self.sky.enabled
 
 
-# def generate_map(position,scale,radius,terrain_amplification,terrain_scale):
-	
+	def make_board(self, grid_points):
+		print("Generating game board")
+		tile_parent = ursina.Entity(parent=self)
+		tile_count=0
 
-# 	model = parent.combine(tiles)
-# 	ursina.Entity(position=position, model=model, color=ursina.color.rgb(0,0,255), y = 0.02)
-# 	print(model)
-
-# 	for t in tiles:
-# 		t.enabled=False
-# 	for t in grid:
-# 		t.enabled=False
-
-# 	water = generate_water(position,scale,radius)
-# 	# subwater = LitObject(model = "plane", scale = scale*radius, color=ursina.color.colors["black"], specularMap = specTexture, normalMap = normTexture, ambientStrength = 0.5)
-# 	lighting = generate_lighting(scale)
+		edges = []
+		edgedict = {}
+		nodes = []
+		nodedict = {}
+		tiles = []
+		offsets = calc_hexagon_outline_verts_from_center_point(.5*self.map_radius)
 		
-# 	# for t in tiles:
-# 	# 	print(t.collider)
+		hexes = []
+		for row_index in range(len(grid_points)):
+			hexrow = []
+			for col_index in range(len(grid_points[row_index])):
+				x,z=grid_points[row_index][col_index]
+				p = offsets
+				verts = p[0]
+				verts = list((v[0]+self.origin_x+x,v[2]+self.origin_z+z) for v in verts)
+				
+				if row_index==0: #If in top row
+					if col_index == 0:
+						edgeverts = [(verts[0],verts[1]),(verts[1],verts[2]),(verts[2],verts[3]),(verts[3],verts[4]),(verts[4],verts[5]),(verts[5],verts[0])]
+					else:
+						prevverts = hexrow[col_index-1]
+						edgeverts = [
+							(verts[0],verts[1]),
+							(verts[1],verts[2]),
+							(verts[2],verts[3]),
+							(verts[3],prevverts[2]),
+							(prevverts[2],verts[5]),
+							(verts[5],verts[0])
+						]
+				else:
+					#top verts can be obtained from previous row
+					prev_row = hexes[row_index-1]
+					middle = (len(grid_points)-1)/2					
+					if row_index < middle:
+						if col_index == 0:
+							above_left_hex = None
+							above_right_hex = prev_row[col_index]
+						elif col_index == len(grid_points[row_index]) - 1:
+							above_left_hex = prev_row[col_index-1]
+							above_right_hex = None
+						else:
+							above_left_hex = prev_row[col_index-1]
+							if row_index == middle:
+								above_right_hex = None
+							else:
+								above_right_hex = prev_row[col_index]
+					elif row_index == middle:
+						if col_index == 0:
+							above_left_hex = None
+							above_right_hex = prev_row[0]
+						elif col_index == len(grid_points[row_index]) - 1:
+							above_left_hex = prev_row[col_index-1]
+							above_right_hex = None
+						else:
+							above_left_hex = prev_row[col_index-1]
+							above_right_hex = prev_row[col_index]
+					else:
+						if col_index == len(grid_points[row_index]) - 1:
+							above_left_hex = prev_row[col_index]
+							above_right_hex = None
+						else:
+							above_left_hex = prev_row[col_index]
+							above_right_hex = prev_row[col_index+1]
 
-# 	# nodes = generate_node_points(position,scale,radius,terrain_amplification,terrain_scale)
+					v0 = above_left_hex[2] if above_left_hex else above_right_hex[4]
+					v1 = above_right_hex[3] if above_right_hex else verts[1]
+					prevverts = hexrow[col_index-1] if col_index else None
+					v4 = prevverts[2] if prevverts else verts[4]
+					v5 = prevverts[1] if prevverts else verts[5]
 
-
-# 	objects = []
-# 	for l in [tiles, grid, shore, water, lighting]:
-# 		for o in l:
-# 			objects.append(l)
-# 	return objects
-
-
-# 	# # noiseGenerator.regen()
-# 	# origin_x, origin_z = position
-# 	# tiles=[]
-# 	# for row in grid_points:
-# 	# 	for x,z in row:
-# 	# 		position=((origin_x+x*scale),0,(origin_z+z*scale))
-# 	# 		p = calc_hexagon_verts_from_center_point((x, 0, z), scale, (scale+.5)*radius, terrain_amplification=terrain_amplification,terrain_scale=terrain_scale)
-# 	# 		t = Tile((x,z), scale, position, p, ursina.color.colors[get_resource_color(pick_random_resource_type())])
-# 	# 		tiles.append(t)
-# 	# return tiles
-
-
-
-
-
-
-
-
-
-
-
-
-# class node:
-# 	def __init__(self, id):
-# 		self.id = None
-# 		self.neighbor_nodes = []
-# 		self.
-
-
-# def generate_node_points(tiles):
-# 	unique_edges = set()
-# 	for r in row:
-
-
-
-#Horribly slow but constructs the hexagon grid
-# def draw_honeycomb_new(position,radius,scale,terrain_amplification,terrain_scale):
-# 	origin_x, origin_z = position
-# 	points = calc_hex_grid_points_from_radius(radius)
-
-# 	tiles=[]
-# 	unique_edges = set()
-# 	for row in points:
-# 		for x,z in row:
-# 			color = get_resource_color(pick_random_resource_type())
-# 			p = calc_hexagon_verts_from_center_point(origin_x, origin_z, x, z, scale, 0, terrain_amplification=terrain_amplification,terrain_scale=terrain_scale)
-# 			linepoints = calc_hexagon_outline_verts_from_center_point(origin_x, origin_z, x, z, scale, 0, terrain_amplification=terrain_amplification,terrain_scale=terrain_scale)
-# 			t = Tile(p, ursina.color.colors[color])
-
-# 			line_verts, line_tris = linepoints
-# 			for i in range(0, len(line_verts)-1):
-# 				if line_verts[i][0] > line_verts[i+1][0]:
-# 					unique_edges.add((line_verts[i], line_verts[i+1]))
-# 				else:
-# 					unique_edges.add((line_verts[i+1], line_verts[i]))
-# 			if line_verts[len(line_verts)-1][0] > line_verts[0][0]:
-# 				unique_edges.add((line_verts[len(line_verts)-1], line_verts[0]))
-# 			else:
-# 				unique_edges.add((line_verts[0], line_verts[len(line_verts)-1]))
-# 			# t.outline = ursina.Entity(model=ursina.Mesh(vertices=(linepoints[0]), triangles=linepoints[1], mode='line', thickness=int(3*min(1,scale))), color=ursina.color.rgb(0,0,0), y = 0.02)
-# 			tiles.append(t)
-# 	for e in unique_edges:
-# 		print(e)
-
-# 	verts = []
-# 	tris = []
-# 	for e in unique_edges:
-# 		first_index = 0
-# 		second_index = 0
-# 		e0, e1 =e
-# 		if e0 in verts:
-# 			first_index = verts.index(e0)
-# 		else:
-# 			verts.append(e0)
-# 			first_index = len(verts)-1
-# 		if e1 in verts:
-# 			second_index = verts.index(e1)
-# 		else:
-# 			verts.append(e1)
-# 			second_index = len(verts)-1
-# 		tris.append((first_index, second_index))
-# 		gridmesh = ursina.Entity(model=ursina.Mesh(vertices=verts, triangles=tris, mode='line', thickness=3), color=ursina.color.rgb(0,0,0), y = 0.02)
-
-# 	print(f"Counted {len(unique_edges)} verts")
-# 	return tiles
+					edgeverts = [(v0,v1),(v1,verts[2]),(verts[2],verts[3]),(verts[3],v4),(v4,v5),(v5,v0)]
+				hexrow.append(verts)
+				
+				tile_edges = []
+				tile_nodes = set()
+				for e in edgeverts: #Get edges, we are cheating and using float percision to check if they already exist...
+					center = (float("{:0.4f}".format((e[0][0]+e[1][0])/2))),(float("{:0.4f}".format((e[0][1]+e[1][1])/2)))
+					if edgedict.get(center):
+						tile_edges.append(edgedict.get(center))
+						continue
+					else:
+						node_a = nodedict.get((float("{:0.4f}".format(e[0][0])), float("{:0.4f}".format(e[0][1]))))
+						if not node_a:
+							node_a = Node(self.game, e[0])
+							nodedict[(float("{:0.4f}".format(e[0][0])), float("{:0.4f}".format(e[0][1])))] = node_a
+							nodes.append(node_a)
+						node_b = nodedict.get((float("{:0.4f}".format(e[1][0])), float("{:0.4f}".format(e[1][1]))))
+						if not node_b:
+							node_b = Node(self.game, e[1])
+							nodedict[(float("{:0.4f}".format(e[1][0])), float("{:0.4f}".format(e[1][1])))] = node_b
+							nodes.append(node_b)
+					edg = Edge(self.game, center, e, node_a, node_b)
+					tile_edges.append(edg)
+					edges.append(edg)
+					edgedict[center] = edg
+				for e in tile_edges: tile_nodes.update((e.node_a, e.node_b))
+				position=((self.origin_x+x),0,(self.origin_z+z))
+				tiles.append(Tile(self.game, position, tile_edges, tile_nodes))
+			hexes.append(hexrow)
+		edgescopy = edges.copy()
+		for e in edges: #Link Edges
+			edgescopy.remove(e)
+			for e2 in edges:
+				#If any of the nodes match
+				if any((e.node_a is e2.node_a,
+						e.node_a is e2.node_b,
+						e.node_b is e2.node_a,
+						e.node_b is e2.node_b)):
+					e.add_neighbor_edge(e2)
+					e2.add_neighbor_edge(e)
+		for n in nodes: #Link tiles
+			ts = n.neighbor_tiles
+			for t in ts:
+				for t2 in ts:
+					if t is t2: continue
+					t.add_neighbor_tile(t2)
+		self.game.create(tiles,edges,nodes)
+		print(f"Generated:\n\t{len(tiles)} tiles\n\t{len(edges)} edges\n\t{len(nodes)} nodes")

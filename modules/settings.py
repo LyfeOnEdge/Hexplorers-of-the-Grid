@@ -9,13 +9,20 @@ def remake_settings():
 		"borderless" : False,
 		"fullscreen" : False,
 		"heightmap_noise_dampening":1,
-		"water_scale":8,
+		"water_scale":6,
+		"water_subdivisions_per_axis_radius":3,
+
+		"island_subdivisions_per_axis_radius":3,
+
 		"island_height_multiplier":1,
 		"shore_drop":1,
-		"default_radius":15,
-		"default_scale":1,
+		"default_radius":4,
 		"default_terrain_amp":1,
-		"default_terrain_scale":1,
+
+		"island_resolution":200, #Number of verts per axis in island mesh
+		"island_scale":6, #Bigger means more, smaller islands
+
+		"activated_color":(255,165,0),
 	}
 	with open("settings.json", "w+") as s:
 		json.dump(setting_dict, s, indent=4)
