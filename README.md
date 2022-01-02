@@ -6,7 +6,6 @@
 ## About
  - Uses the Ursina Engine for graphics
  - Uses OpenSimplex for terrain generation
- - Currently just lays out hexagons
  - Water Shaders by Tusnad30: https://github.com/Tusnad30/Ursina-Lighting
 
 ## Goals
