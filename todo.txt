@@ -1,2 +1,50 @@
+
+
+
+
+
+
+
+
+
+
 todo:
+
+BEFORE RELEASE
+
+EXCHANGE RESOURCES WINDOW
+
+robber
+desert tiles
+trading ports
+fix island skirt
+cancel button in ui
+longest road
+harbormaster
+largest army
+development cards
+recipe card
+
+
+
+
+
+
+
+
+thread texture and heightmap generation
 boats that go between islands
+option to ensure a minimum quantity of each type of tile to prevent RNG not spawning certain tiles
+custom boards
+water tiles
+sea tiles
+bridges
+city walls
+permutate board pieces rotation etc
+
+chat/command console on bottom left
+
+House rules:
+	"Control of the Land" - If you own 3 nodes on a hexagon you get +1 of that resource when it is rolled, can also be a development card
+	"Bumper Crop" - Rolling two of the same value eg 3 + 3 for a roll of 6 makes that resource pay out double to ONLY THE CURRENT PLAYER 
+	"Toll Roads" - Connecting a road to another player's settlement grants + 0.5 victory points

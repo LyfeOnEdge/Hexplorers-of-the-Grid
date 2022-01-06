@@ -1,6 +1,7 @@
 import ursina
 import numpy as np
 from .settings import settings
+from HexplorationEngine import TileMixin, EdgeMixin, NodeMixin
 
 class HeightMesh(ursina.Mesh): #Based on terrain.py found in Ursina, adopted to work with a heightmap array rather than an image
 	def __init__(self, heightmap):
@@ -56,7 +57,12 @@ class BoardTile(ursina.Entity):
 			model=self.mesh,
 			color=color,
 			origin=0,
-			position=(position[0],0,position[1]),
+			position=(
+				position[0]*settings.board_scale,
+				0*settings.board_scale,
+				position[1]*settings.board_scale
+			),
+			scale=settings.board_scale,
 		)
 		self.outline = None
 
@@ -73,33 +79,40 @@ class ShoreTile(ursina.Entity):
 			self,
 			parent=parent,
 			model=ursina.Mesh(vertices=self.verts, triangles=self.tris, mode='ngon', thickness=2),
-			color=ursina.rgb(220,190,140),
+			color=ursina.rgb(*settings.island_skirt_color),
 			origin=0,
-			position=position,
+			position=(
+				position[0]*settings.board_scale,
+				position[1]*settings.board_scale,
+				position[2]*settings.board_scale
+			),
+			scale=settings.board_scale,
 		)
 		self.outline = None
 
 
-from .catanengine import TileMixin, EdgeMixin, NodeMixin
+
 
 
 class BoardElement(ursina.Button):
 	def __init__(self, game, center, **kwargs):
+		self.center = center
 		ursina.Button.__init__(
 			self,
 			parent=ursina.scene,
 			model="sphere",
-			position=(center[0],1.05,center[1]),
-			scale=0.1,
+			position=(center[0]*settings.board_scale,1.05*settings.board_scale,center[1]*settings.board_scale),
+			scale=settings.board_selector_scale,
 			on_click = self.on_click_action,
 			*kwargs
 		)
+		self.enabled = False
 	def on_click_action(self):
 		pass
 
 	def activate(self):
 		self.blink(
-			value=ursina.color.rgb(settings.activated_color[0],settings.activated_color[1],settings.activated_color[2]),
+			value=ursina.color.rgb(*settings.activated_color),
 			duration=1,
 			delay=0,
 			curve=ursina.curve.in_expo_boomerang,
@@ -127,14 +140,28 @@ class Node(BoardElement, NodeMixin):
 	def activate(self):
 		BoardElement.activate(self)
 		NodeMixin.activate(self)
+	def set_owner(self, *args, **kwargs):
+		self.scale *= 2
+		NodeMixin.set_owner(self, *args, **kwargs)		
 
 class Tile(BoardElement, TileMixin):
-	def __init__(self, game, center, tile_edges, tile_nodes, value = 0):
-		BoardElement.__init__(self,game, (center[0],center[2]))
-		TileMixin.__init__(self,game, tile_edges, tile_nodes, value)
+	def __init__(self, game, center, tile_edges, tile_nodes,**kwargs):
+		BoardElement.__init__(self,game, (center[0],center[2]),**kwargs)
+		TileMixin.__init__(self,game, tile_edges, tile_nodes)
 		self.color = ursina.rgb(255,0,255)
 	def on_click_action(self):
 		self.game.select(self)
 	def activate(self):
 		BoardElement.activate(self)
 		TileMixin.activate(self)
+
+class Divider(ursina.Entity):
+	def __init__(self, *args, **kwargs):
+		ursina.Entity.__init__(
+			self,
+			*args,
+			model='quad',
+			**kwargs,
+			color = ursina.color.white,
+		 )
+		self.z-=0.7

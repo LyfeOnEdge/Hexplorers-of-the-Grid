@@ -1,4 +1,4 @@
-
 *.pyc
 __pycache__/catanengine.cpython-310.pyc
-/temp_textures/*
+*settings.json
+/textures/temp/*
