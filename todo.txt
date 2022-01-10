@@ -12,24 +12,18 @@ todo:
 
 BEFORE RELEASE
 
-EXCHANGE RESOURCES WINDOW
-
-robber
-desert tiles
-trading ports
 fix island skirt
-cancel button in ui
 longest road
-harbormaster
-largest army
-development cards
-recipe card
+
+trading ports
+-harbormaster
+achievement cards
+- largest army
 
 
 
-
-
-
+menu box for dice roll odds
+menu box for payouts per dice roll
 
 
 thread texture and heightmap generation
@@ -39,12 +33,24 @@ custom boards
 water tiles
 sea tiles
 bridges
-city walls
+capital walls
 permutate board pieces rotation etc
 
 chat/command console on bottom left
 
 House rules:
-	"Control of the Land" - If you own 3 nodes on a hexagon you get +1 of that resource when it is rolled, can also be a development card
+	"Control of the Land" - If you own 3 nodes on a hexagon you get +1 of that resource when it is rolled, can also be a achievement card
 	"Bumper Crop" - Rolling two of the same value eg 3 + 3 for a roll of 6 makes that resource pay out double to ONLY THE CURRENT PLAYER 
-	"Toll Roads" - Connecting a road to another player's settlement grants + 0.5 victory points
+	"Toll Roads" - Connecting a road to another player's town grants + 0.5 victory points
+
+# Uncapped towns
+# Uncapped Cities
+# Uncapped Roads 
+# Infinite Board
+# Change minimum card count to trade
+# Trade some tiles pay out different amounts
+# Tiles that get rolled less frequently pay out more
+price of a building things goes up after a while
+# Disable "unlucky 7"
+
+Change names of everything 

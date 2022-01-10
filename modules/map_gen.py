@@ -5,7 +5,7 @@ import ursina
 from .settings import settings
 from HexplorationEngine import get_resource_color
 from .texture_gen import BoardTexturer
-from .entities import BoardTile, ShoreTile, LandMasses, Edge, Node, Tile
+from .entities import WaterTile, ShoreTile, LandMasses, Edge, Node, Tile
 from .UrsinaLighting import LitObject, LitPointLight, LitInit
 from opensimplex import OpenSimplex
 
@@ -14,7 +14,7 @@ sqrt3 = math.sqrt(3.0)
 halfsqrt3 = math.sqrt(3.0)/2.0
 
 def _calc_hexagon_verts(map_radius = 1):
-	return [[0,1,0],[0,1,1],[halfsqrt3,1,0.5],[halfsqrt3,1,-0.5],[0,1,-1],[-halfsqrt3,1,-0.5],[-halfsqrt3,1,0.5]]
+	return [[0,0,0],[0,0,1],[halfsqrt3,0,0.5],[halfsqrt3,0,-0.5],[0,0,-1],[-halfsqrt3,0,-0.5],[-halfsqrt3,0,0.5]]
 #Draws a 'circle' of tris around a center point
 def calc_hexagon_verts_from_center_point(*args, **kwargs):
 	return _calc_hexagon_verts(*args,**kwargs),  (0,6,5,0,5,4,0,4,3,0,3,2,0,2,1,0,1,6)
@@ -101,17 +101,17 @@ class MapMaker(ursina.Entity):
 	def generate_map(self):
 		print(f"Generating Map")
 		noise_generator.regen(random.uniform(0,1))
-		island_center_points = calc_hex_grid_points_from_radius(self.map_radius)
+		island_center_points = calc_hex_grid_points_from_radius(self.map_radius+1) #Outer edge is water tiles
 		self.light_controller = LitInit() #Enable lighting shader
 		self.make_board(island_center_points)
-		self.generate_tile_grid(island_center_points)
-		self.generate_island_shores(calc_hex_grid_points_from_radius(self.map_radius+1))
+		self.generate_tile_grid(calc_hex_grid_points_from_radius(self.map_radius))
+		# self.generate_island_shores(calc_hex_grid_points_from_radius(self.map_radius+1))
 		self.generate_scenery_islands()
 		self.generate_water()
 		self.generate_sky()
 		self.generate_lighting()
 		objects = []
-		[objects.extend(l) for l in [self.tiles,self.grid,self.shore,self.water,self.lights]]
+		[objects.extend(l) for l in [self.tiles,self.water,self.lights]] #self.grid
 		return objects
 
 	def generate_tile_grid(self, grid_points):
@@ -121,105 +121,106 @@ class MapMaker(ursina.Entity):
 			for x,z in row:
 				position=((self.origin_x+x)*settings.board_scale,0,(self.origin_z+z)*settings.board_scale)
 				p = calc_hexagon_outline_verts_from_center_point(.5*self.map_radius)
-				t = ursina.Entity(parent=self, scale=settings.board_scale, position=position, model=ursina.Mesh(vertices=(p[0]), triangles=p[1], mode='line', thickness=5), color=ursina.color.rgb(0,0,0), y = 0.02)
+				p = ([[i[0],settings.island_height_above_water,i[2]] for i in p[0]], p[1])
+				t = ursina.Entity(parent=self, scale=settings.board_scale, position=position, model=ursina.Mesh(vertices=(p[0]), triangles=p[1], mode='line', thickness=settings.tile_grid_thickness), color=ursina.color.rgb(0,0,0), y = 0.02)
 				self.grid.append(t)
 
-	def generate_island_shores(self, grid_points):
-		print("Generating Island Shores")
-		#Calculate shore
-		#Systematically generate the hexagons we need
-		#and then drop their outermost points to
-		#create a bank
-		shore_parent = ursina.Entity(parent=self) 
-		self.shore = []
-		row_index = 0
-		r = self.map_radius + 1
-		for row in grid_points:
-			index = 0
-			for x,z in row:
-				position=((self.origin_x+x),0,(self.origin_z+z))
-				hex_verts, tris = calc_hexagon_verts_from_center_point(.5*self.map_radius)
-				needed = False #If the hexagon is one of the needed ones (edges)
-				#Sets to ensure vertex translations are only applied once
-				verts_to_cliffdrop = set()
-				verts_to_increase_x = set()
-				verts_to_increase_z = set()
-				verts_to_decrease_x = set()
-				verts_to_decrease_z = set()
-				if row_index == r:
-					verts_to_cliffdrop.update({1}) #Only flag needed if on either end, will flag below
-				if row_index == 0:#If in the top row
-					needed=True
-					verts_to_cliffdrop.update({6,1,2})
-					verts_to_increase_z.update({0,6,1,2})
-				if index == 0:
-					needed=True
-					if row_index < r:
-						verts_to_cliffdrop.update({5,6,1})#Top half
-						verts_to_decrease_x.update({0,5,6,1})
-						verts_to_increase_z.update({0,5,6,1})
-					elif row_index == r:
-						verts_to_cliffdrop.update({4,5,6,1})
-						verts_to_decrease_x.update({0,4,5,6,1})
-						verts_to_increase_z.update({0,5,6,1})
-						verts_to_decrease_z.update({4})
-					elif row_index > r:
-						verts_to_cliffdrop.update({4,5,6})#Bottom Half
-						verts_to_decrease_x.update({0,4,5,6})
-						verts_to_decrease_z.update({0,4,5,6})
+	# def generate_island_shores(self, grid_points):
+	# 	print("Generating Island Shores")
+	# 	#Calculate shore
+	# 	#Systematically generate the hexagons we need
+	# 	#and then drop their outermost points to
+	# 	#create a bank
+	# 	shore_parent = ursina.Entity(parent=self) 
+	# 	self.shore = []
+	# 	row_index = 0
+	# 	r = self.map_radius + 1
+	# 	for row in grid_points:
+	# 		index = 0
+	# 		for x,z in row:
+	# 			position=((self.origin_x+x),0,(self.origin_z+z))
+	# 			hex_verts, tris = calc_hexagon_verts_from_center_point(.5*self.map_radius)
+	# 			needed = False #If the hexagon is one of the needed ones (edges)
+	# 			#Sets to ensure vertex translations are only applied once
+	# 			verts_to_cliffdrop = set()
+	# 			verts_to_increase_x = set()
+	# 			verts_to_increase_z = set()
+	# 			verts_to_decrease_x = set()
+	# 			verts_to_decrease_z = set()
+	# 			if row_index == r:
+	# 				verts_to_cliffdrop.update({1}) #Only flag needed if on either end, will flag below
+	# 			if row_index == 0:#If in the top row
+	# 				needed=True
+	# 				verts_to_cliffdrop.update({6,1,2})
+	# 				verts_to_increase_z.update({0,6,1,2})
+	# 			if index == 0:
+	# 				needed=True
+	# 				if row_index < r:
+	# 					verts_to_cliffdrop.update({5,6,1})#Top half
+	# 					verts_to_decrease_x.update({0,5,6,1})
+	# 					verts_to_increase_z.update({0,5,6,1})
+	# 				elif row_index == r:
+	# 					verts_to_cliffdrop.update({4,5,6,1})
+	# 					verts_to_decrease_x.update({0,4,5,6,1})
+	# 					verts_to_increase_z.update({0,5,6,1})
+	# 					verts_to_decrease_z.update({4})
+	# 				elif row_index > r:
+	# 					verts_to_cliffdrop.update({4,5,6})#Bottom Half
+	# 					verts_to_decrease_x.update({0,4,5,6})
+	# 					verts_to_decrease_z.update({0,4,5,6})
 
-				elif index == len(row)-1:#If in the last column
-					needed=True
-					if row_index < r:
-						verts_to_cliffdrop.update({1,2,3})#Top half
-						verts_to_increase_x.update({0,1,2,3})
-						verts_to_increase_z.update({0,1,2,3})
-					elif row_index == r:
-						verts_to_cliffdrop.update({1,2,3,4})#Top half
-						verts_to_increase_x.update({0,1,2,3,4})
-						verts_to_decrease_z.update({0,2,3,4})
-						verts_to_increase_z.update({1})
-					elif row_index > r:
-						verts_to_cliffdrop.update({2,3,4})#Bottom Half
-						verts_to_increase_x.update({0,2,3,4})
-						verts_to_decrease_z.update({0,2,3,4})
+	# 			elif index == len(row)-1:#If in the last column
+	# 				needed=True
+	# 				if row_index < r:
+	# 					verts_to_cliffdrop.update({1,2,3})#Top half
+	# 					verts_to_increase_x.update({0,1,2,3})
+	# 					verts_to_increase_z.update({0,1,2,3})
+	# 				elif row_index == r:
+	# 					verts_to_cliffdrop.update({1,2,3,4})#Top half
+	# 					verts_to_increase_x.update({0,1,2,3,4})
+	# 					verts_to_decrease_z.update({0,2,3,4})
+	# 					verts_to_increase_z.update({1})
+	# 				elif row_index > r:
+	# 					verts_to_cliffdrop.update({2,3,4})#Bottom Half
+	# 					verts_to_increase_x.update({0,2,3,4})
+	# 					verts_to_decrease_z.update({0,2,3,4})
 
-				if row_index == len(grid_points)-1:#If in the bottom row
-					needed=True
-					verts_to_cliffdrop.update({3,4,5})
-					verts_to_decrease_z.update({0,3,4,5})
+	# 			if row_index == len(grid_points)-1:#If in the bottom row
+	# 				needed=True
+	# 				verts_to_cliffdrop.update({3,4,5})
+	# 				verts_to_decrease_z.update({0,3,4,5})
 
-				if needed:
-					for v in verts_to_cliffdrop:
-						hex_verts[v][1] =-settings.shore_drop
-					for v in verts_to_increase_z:
-						mult = settings.shore_spread
-						if v == 0: mult *= 0.5
-						hex_verts[v][2] += mult
-					for v in verts_to_decrease_z:
-						mult = settings.shore_spread
-						if v == 0: mult *= 0.5
-						hex_verts[v][2] -= mult
-					for v in verts_to_increase_x:
-						mult = settings.shore_spread
-						if v == 0: mult *= 0.5
-						hex_verts[v][0] += mult
-					for v in verts_to_decrease_x:
-						mult = settings.shore_spread
-						if v == 0: mult *= 0.5
-						hex_verts[v][0] -= mult
+	# 			if needed:
+	# 				for v in verts_to_cliffdrop:
+	# 					hex_verts[v][1] =-settings.shore_drop
+	# 				for v in verts_to_increase_z:
+	# 					mult = settings.shore_spread
+	# 					if v == 0: mult *= 0.5
+	# 					hex_verts[v][2] += mult
+	# 				for v in verts_to_decrease_z:
+	# 					mult = settings.shore_spread
+	# 					if v == 0: mult *= 0.5
+	# 					hex_verts[v][2] -= mult
+	# 				for v in verts_to_increase_x:
+	# 					mult = settings.shore_spread
+	# 					if v == 0: mult *= 0.5
+	# 					hex_verts[v][0] += mult
+	# 				for v in verts_to_decrease_x:
+	# 					mult = settings.shore_spread
+	# 					if v == 0: mult *= 0.5
+	# 					hex_verts[v][0] -= mult
 
-					hex_verts[0][1] =-settings.shore_drop/2.0 #Drop center of hexagon half way for slope
-					self.shore.append(ShoreTile(shore_parent, position, (hex_verts,((0,6,5),(0,5,4),(0,4,3),(0,3,2),(0,2,1),(0,1,6)))))
-				index += 1
-			row_index += 1
-		for s in self.shore:
-			s.enabled = False
+	# 				hex_verts[0][1] =-settings.shore_drop/3.0 #Drop center of hexagon for slope
+	# 				self.shore.append(ShoreTile(shore_parent, position, (hex_verts,((0,6,5),(0,5,4),(0,4,3),(0,3,2),(0,2,1),(0,1,6)))))
+	# 			index += 1
+	# 		row_index += 1
+	# 	for s in self.shore:
+	# 		s.enabled = False
 
-		ignorelist = []
-		for l in [self.grid]:
-			for i in l: ignorelist.append(i)
-		shore_parent.combine(ignore=ignorelist)
+	# 	ignorelist = []
+	# 	for l in [self.grid]:
+	# 		for i in l: ignorelist.append(i)
+	# 	shore_parent.combine(ignore=ignorelist)
 
 	def generate_water(self):
 		print("Generating Water")
@@ -279,6 +280,7 @@ class MapMaker(ursina.Entity):
 		bt = BoardTexturer(width, height)
 		bt.generate_board()
 
+		middle = (len(grid_points)-1)/2	
 		for row_index in range(len(grid_points)):
 			hexrow = []
 			tile_row = []
@@ -287,7 +289,6 @@ class MapMaker(ursina.Entity):
 				p = offsets
 				verts = p[0]
 				verts = list((v[0]+self.origin_x+x,v[2]+self.origin_z+z) for v in verts)
-				
 				if row_index==0: #If in top row
 					if col_index == 0:
 						edgeverts = [(verts[0],verts[1]),(verts[1],verts[2]),(verts[2],verts[3]),(verts[3],verts[4]),(verts[4],verts[5]),(verts[5],verts[0])]
@@ -303,8 +304,7 @@ class MapMaker(ursina.Entity):
 						]
 				else:
 					#top verts can be obtained from previous row
-					prev_row = hexes[row_index-1]
-					middle = (len(grid_points)-1)/2					
+					prev_row = hexes[row_index-1]				
 					if row_index < middle:
 						if col_index == 0:
 							above_left_hex = None
@@ -370,7 +370,10 @@ class MapMaker(ursina.Entity):
 				for e in tile_edges: tile_nodes.update((e.node_a, e.node_b))
 				position=((self.origin_x+x),0,(self.origin_z+z))
 				texture=bt.get_image_piece(row_index,col_index),
-				t = Tile(self.game, position, tile_edges, tile_nodes)
+				if col_index == 0 or col_index == len(grid_points[row_index])-1 or row_index == 0 or row_index == len(grid_points)-1:
+					t = WaterTile(self.game, position, tile_edges, tile_nodes)
+				else:
+					t = Tile(self.game, position, tile_edges, tile_nodes, map_center=row_index==middle and col_index==middle)
 				t.enabled = False
 				tiles.append(t)
 				tile_row.append(t)
@@ -399,16 +402,54 @@ class MapMaker(ursina.Entity):
 		for z in range(len(tile_rows)):
 			for x in range(len(tile_rows[z])):
 				t = tile_rows[z][x]
-				tile = LitObject(
-					parent = tile_parent,
-					color=t.get_resource_color(),
-					texture=bt.get_image_piece(t.x,t.z),
-					model="hexagon",
-					position=(t.x,settings.board_scale,t.z),
-					scale=settings.board_scale,
-					)
-				self.board_tiles.append(tile)
+				if type(t) is Tile:
+					tile = LitObject(
+						parent = tile_parent,
+						color=t.get_resource_color(),
+						texture=bt.get_image_piece(t.x,t.z),
+						model="hexagon",
+						position=(t.x,settings.board_scale*settings.island_height_above_water,t.z),
+						scale=settings.board_scale,
+						)
+					t.tile_entity = tile
+					self.board_tiles.append(tile)
+				elif type(t) is WaterTile:
+					tile = LitObject(
+						parent = tile_parent,
+						color=ursina.rgb(60,100,230),
+						texture=bt.get_image_piece(t.x,t.z),
+						model="hexagon",
+						position=(t.x,0.5*settings.board_scale*settings.island_height_above_water,t.z),
+						scale=settings.board_scale,
+						cubemapIntensity=0.75,
+						)
+					t.tile_entity = tile
+					self.board_tiles.append(tile)
 		self.game.create(tiles,edges,nodes)
+
+		for e in edges: #Determine water edges
+			if all(type(t) is WaterTile for t in e.neighbor_tiles):
+				e.water_edge = True
+
+		shore_edges = []
+		for e in edges: #Run through again to spawn random numbers of ports
+			#Check if edge touches both water and land
+			if len({type(t) for t in e.neighbor_tiles}) > 1: #Both land and water
+				shore_edges.append(e)
+
+		#Randomly assign ports
+		for _ in range(self.game.number_of_trading_port_attempts):
+			if not shore_edges: break
+			edge = random.choice(shore_edges)
+			shore_edges.remove(edge) #Remove it from list 
+			if not any(e.port for e in edge.neighbor_edges):
+				if random.uniform(0,1) < self.game.port_chance:
+					edge.enable_port()
+
+
+		for n in nodes: #Determine water nodes
+			if all(type(t) is WaterTile for t in n.neighbor_tiles):
+				n.water_node = True
 
 	def toggle_water(self):
 		for e in self.water: e.enabled = not e.enabled

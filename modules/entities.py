@@ -1,9 +1,10 @@
 import ursina
 import numpy as np
 from .settings import settings
-from HexplorationEngine import TileMixin, EdgeMixin, NodeMixin
+from HexplorationEngine import TileMixin, EdgeMixin, NodeMixin, WaterTileMixin
+from .UrsinaLighting import LitObject
 
-class HeightMesh(ursina.Mesh): #Based on terrain.py found in Ursina, adopted to work with a heightmap array rather than an image
+class HeightMesh(ursina.Mesh): #Based on terrain.py found in Ursina, adopted to work with a numpy array directly rather than an image
 	def __init__(self, heightmap):
 		self.heightmap = heightmap
 		w, h = len(self.heightmap), len(self.heightmap[0])
@@ -38,39 +39,12 @@ class LandMasses(ursina.Entity):
 		ursina.Entity.__init__(
 			self,
 			position=(-0.5*scale,-0.0625*scale,-0.5*scale),
-			# texture_offset=(0.5,0.5,0.5),
 			scale=scale,
 			scale_y=0.25*scale,
 			texture = texture,
 			model=HeightMesh(heightmap),
 			**kwargs,
 			)
-
-
-class BoardTile(ursina.Entity):
-	def __init__(self,parent,position, points, color):
-		self.verts, self.tris = points, (0,6,5,0,5,4,0,4,3,0,3,2,0,2,1,0,1,6)
-		self.mesh = ursina.Mesh(vertices=self.verts, triangles=self.tris, mode='triangle', thickness=2)
-		ursina.Entity.__init__(
-			self,
-			parent=parent,
-			model=self.mesh,
-			color=color,
-			origin=0,
-			position=(
-				position[0]*settings.board_scale,
-				0*settings.board_scale,
-				position[1]*settings.board_scale
-			),
-			scale=settings.board_scale,
-		)
-		self.outline = None
-
-	def input(self, key):
-		if self.hovered:
-			if key == 'left mouse down':
-				self.color = ursina.rgb(0,0,255)
-				self.animate_color(self.color, duration=.1, interrupt='finish')
 
 class ShoreTile(ursina.Entity):
 	def __init__(self,parent, position, points):
@@ -83,15 +57,12 @@ class ShoreTile(ursina.Entity):
 			origin=0,
 			position=(
 				position[0]*settings.board_scale,
-				position[1]*settings.board_scale,
+				settings.island_height_above_water*settings.board_scale,
 				position[2]*settings.board_scale
 			),
 			scale=settings.board_scale,
 		)
 		self.outline = None
-
-
-
 
 
 class BoardElement(ursina.Button):
@@ -101,7 +72,7 @@ class BoardElement(ursina.Button):
 			self,
 			parent=ursina.scene,
 			model="sphere",
-			position=(center[0]*settings.board_scale,1.05*settings.board_scale,center[1]*settings.board_scale),
+			position=(center[0]*settings.board_scale,1.05*settings.board_scale*settings.island_height_above_water,center[1]*settings.board_scale),
 			scale=settings.board_selector_scale,
 			on_click = self.on_click_action,
 			*kwargs
@@ -120,10 +91,11 @@ class BoardElement(ursina.Button):
 		)  
 
 class Edge(BoardElement, EdgeMixin):
-	def __init__(self, game, center, verts, node_a, node_b):
+	def __init__(self, game, center, verts, node_a, node_b, flip_port=False):
 		BoardElement.__init__(self, game, center)
 		EdgeMixin.__init__(self, game, node_a, node_b)
 		self.color = ursina.rgb(255,0,0)
+		self.flip_port = flip_port
 	def on_click_action(self):
 		self.game.select(self)
 	def activate(self):
@@ -145,15 +117,26 @@ class Node(BoardElement, NodeMixin):
 		NodeMixin.set_owner(self, *args, **kwargs)		
 
 class Tile(BoardElement, TileMixin):
-	def __init__(self, game, center, tile_edges, tile_nodes,**kwargs):
+	def __init__(self, game, center, tile_edges, tile_nodes, map_center=False,**kwargs):
 		BoardElement.__init__(self,game, (center[0],center[2]),**kwargs)
-		TileMixin.__init__(self,game, tile_edges, tile_nodes)
+		TileMixin.__init__(self,game, tile_edges, tile_nodes, map_center = map_center)
 		self.color = ursina.rgb(255,0,255)
+		self.tile_entity = None #To hold an entity for rendering
+		
 	def on_click_action(self):
 		self.game.select(self)
 	def activate(self):
 		BoardElement.activate(self)
 		TileMixin.activate(self)
+
+class WaterTile(BoardElement, WaterTileMixin):
+	def __init__(self, game, center, tile_edges, tile_nodes, flip_port=False, **kwargs):
+		BoardElement.__init__(self,game, (center[0],center[2]),**kwargs)
+		TileMixin.__init__(self,game, tile_edges, tile_nodes)
+		self.tile_entity = None #To hold an entity for rendering
+		if flip_port:
+			for e in tile_edges:
+				e.flip_port = True
 
 class Divider(ursina.Entity):
 	def __init__(self, *args, **kwargs):

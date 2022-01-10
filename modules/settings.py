@@ -4,7 +4,6 @@ from types import SimpleNamespace
 def remake_settings():
 	setting_dict = {
 		"devMode" : True,
-		"appName" : "Plan-O-Grab",
 		"keep_topmost" : False,
 		"borderless" : False,
 		"fullscreen" : False,
@@ -14,11 +13,11 @@ def remake_settings():
 
 		"island_subdivisions_per_axis_radius":3,
 
-		"island_height_multiplier":1,
-		"shore_drop":1,
-		"shore_spread":0.5,
+		"shore_drop":0.0,
+		"shore_spread":0.1,
 		"default_radius":3,
 		"default_terrain_amp":1,
+		"island_height_above_water":0.2,
 
 		"island_skirt_color":(200,200,160),
 		"snow_color": (190,190,195),
@@ -31,22 +30,26 @@ def remake_settings():
 		"dirt_cutoff": (0.3),
 		"mud_cutoff": (0.15),
 		"water_color":(0,0,180),
+
+		"port_color": (90,90,20),
 		
-		"board_snow_color": (255,255,255),
+		"board_snow_color": (245,245,245),
 		"board_rock_color": (200,200,200),
-		"board_grass_color": (150,180,150),
+		"board_grass_color": (150,160,150),
 		"board_dirt_color": (170,170,170),
-		"board_sand_color": (155,155,140),
-		"board_water_color": (140,140,140),
+		"board_sand_color": (145,145,140),
+		"board_water_color": (130,130,130),
 		"board_snow_cutoff": 0.80,
 		"board_rock_cutoff": 0.65,
 		"board_grass_cutoff": 0.425,
 		"board_dirt_cutoff": 0.175,
 		"board_sand_cutoff": 0.1,
 		"board_texture_scale":40,
-		"board_texture_resolution":10,
+		"board_texture_resolution":50,
 
-		"island_resolution":200, #Number of verts per axis in island mesh
+		"tile_grid_thickness":5,
+
+		"island_resolution":100, #Number of verts per axis in island mesh
 		"island_scale":6, #Bigger means more, smaller islands
 		"activated_color":(255,165,0),
 		"board_scale":2,
@@ -66,16 +69,17 @@ def remake_settings():
 		"ui_inactive_color":(100,100,100),
 		"ui_recipe_text_color":(255,255,255),
 		"ui_resource_color":(255,255,255),
-
-		"roll_animation_length":1.5,
-
+		"ui_divider_width" : 0.25,
+		"ui_divider_height" : 0.0035,
+		"ui_menu_y_scale" : 0.15,
 
 		"end_turn_string" : "End Turn",
 		"build_road_string" : "Build Road",
-		"build_settlement_string" : "Build Settlement",
-		"build_city_string" : "Build City",
-		"build_dev_card_string" : "Build Development Card",
+		"build_town_string" : "Build Town",
+		"build_capital_string" : "Build Capital",
+		"build_dev_card_string" : "Build Achievement Card",
 		"request_trade_string" : "Request Trade",
+		"exchange_resources_string" : "Exchange Resources"
 
 	}
 	with open("settings.json", "w+") as s:

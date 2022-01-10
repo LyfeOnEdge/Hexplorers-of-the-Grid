@@ -1,7 +1,7 @@
 from ursina import *
 import numpy as np
 
-vert, frag = open("shaders/vert.glsl", "r"), open("shaders/frag.glsl", "r")
+vert, frag = open("assets/shaders/vert.glsl", "r"), open("assets/shaders/frag.glsl", "r")
 LitShader = Shader(language = Shader.GLSL, vertex = vert.read(), fragment = frag.read())
 vert.close()
 frag.close()

@@ -29,8 +29,8 @@ class BoardTexturer:
 			rel_x = (x - _x/(settings.board_texture_resolution*self.width))
 			for _z in range(len(arr[_x])):
 				rel_z = (z - _z/(settings.board_texture_resolution*self.height))
-				vals = [g((rel_x+math.cos(rel_z/10))*settings.board_texture_scale, (rel_z+math.sin(rel_x/12))*settings.board_texture_scale) for g in self.generators]
-				avg = abs(sum(vals)/len(vals))
+				vals = [g((rel_x)*settings.board_texture_scale, (rel_z)*settings.board_texture_scale) for g in self.generators]
+				avg = math.sin(abs(sum(vals)/len(vals))*1.5)
 				if avg > settings.board_snow_cutoff: arr[_x][_z] = settings.board_snow_color
 				elif avg > settings.board_rock_cutoff: arr[_x][_z] = settings.board_rock_color
 				elif avg > settings.board_grass_cutoff: arr[_x][_z] = settings.board_grass_color
@@ -49,3 +49,20 @@ class BoardTexturer:
 		texname = f"textures/temp/board_piece{get_uid()}.png"
 		with open(texname, "wb+") as f: ImageOps.mirror(self.image.crop((left,upper,right,lower))).save(f)
 		return texname
+
+
+#Leopard print
+# vals = [g((rel_x)*settings.board_texture_scale, (rel_z)*settings.board_texture_scale) for g in self.generators]
+# avg = math.cos(abs(sum(vals)/len(vals))*2)
+
+#Deep Valley
+#avg = math.cos(abs(sum(vals)/len(vals))*5)
+
+#Patches
+#avg = math.cos(sum(vals)/len(vals))
+
+#Carbon Fiber
+#avg = (math.cos(sum(vals)/len(vals))+math.sin(_x+_z))/2
+
+#Torn
+#avg = (math.cos(sum(vals)/len(vals))+math.sin(_x/10+_z/10))/2
