@@ -43,13 +43,15 @@ class LandMasses(ursina.Entity):
 			scale_y=0.25*scale,
 			texture = texture,
 			model=HeightMesh(heightmap),
+			add_to_scene_entities=False,
+			eternal=True,
 			**kwargs,
 			)
 
-class ShoreTile(ursina.Entity):
+class ShoreTile(LitObject):
 	def __init__(self,parent, position, points):
 		self.verts, self.tris = points
-		ursina.Entity.__init__(
+		LitObject.__init__(
 			self,
 			parent=parent,
 			model=ursina.Mesh(vertices=self.verts, triangles=self.tris, mode='ngon', thickness=2),
@@ -61,6 +63,11 @@ class ShoreTile(ursina.Entity):
 				position[2]*settings.board_scale
 			),
 			scale=settings.board_scale,
+			texture="textures/sand.png",
+			ambientStrength=0.5,
+			smoothness = 2,
+			cubemapIntensity=0.15,
+			water=True
 		)
 		self.outline = None
 
@@ -75,6 +82,7 @@ class BoardElement(ursina.Button):
 			position=(center[0]*settings.board_scale,1.05*settings.board_scale*settings.island_height_above_water,center[1]*settings.board_scale),
 			scale=settings.board_selector_scale,
 			on_click = self.on_click_action,
+			eternal = True,
 			*kwargs
 		)
 		self.enabled = False
@@ -146,5 +154,6 @@ class Divider(ursina.Entity):
 			model='quad',
 			**kwargs,
 			color = ursina.color.white,
+			add_to_scene_entities=False,
 		 )
 		self.z-=0.7

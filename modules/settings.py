@@ -13,11 +13,11 @@ def remake_settings():
 
 		"island_subdivisions_per_axis_radius":3,
 
-		"shore_drop":0.0,
-		"shore_spread":0.1,
+		"shore_drop":0.2,
+		"shore_spread":-0.5,
 		"default_radius":3,
 		"default_terrain_amp":1,
-		"island_height_above_water":0.2,
+		"island_height_above_water":0.05,
 
 		"island_skirt_color":(200,200,160),
 		"snow_color": (190,190,195),
@@ -45,12 +45,12 @@ def remake_settings():
 		"board_dirt_cutoff": 0.175,
 		"board_sand_cutoff": 0.1,
 		"board_texture_scale":40,
-		"board_texture_resolution":50,
+		"board_texture_resolution":5,
 
 		"tile_grid_thickness":5,
 
 		"island_resolution":100, #Number of verts per axis in island mesh
-		"island_scale":6, #Bigger means more, smaller islands
+		"island_scale":7, #Bigger means more, smaller islands
 		"activated_color":(255,165,0),
 		"board_scale":2,
 
@@ -58,8 +58,8 @@ def remake_settings():
 		"player_color_blue": (0,0,200),
 		"player_color_green": (0,150,30),
 		"player_color_yellow": (200,203,8),
-		"player_color_purple": (66,33,99),
-		"player_color_pink": (150,50,190),
+		"player_color_purple": (60,20,100),
+		"player_color_pink": (255,90,220),
 		"player_color_brown": (107, 67, 33),
 		"player_color_gray": (127,127,127),
 		"board_model_scale":0.25,
@@ -76,8 +76,8 @@ def remake_settings():
 		"end_turn_string" : "End Turn",
 		"build_road_string" : "Build Road",
 		"build_town_string" : "Build Town",
-		"build_capital_string" : "Build Capital",
-		"build_dev_card_string" : "Build Achievement Card",
+		"build_capitol_string" : "Build Capital",
+		"build_dev_card_string" : "Build Achievement/Action Card",
 		"request_trade_string" : "Request Trade",
 		"exchange_resources_string" : "Exchange Resources"
 

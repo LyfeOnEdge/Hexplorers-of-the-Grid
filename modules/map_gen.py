@@ -3,7 +3,7 @@ from PIL import Image, ImageOps
 import numpy as np
 import ursina
 from .settings import settings
-from HexplorationEngine import get_resource_color
+from HexplorationEngine import get_resource_color, RESOURCE_WATER, RESOURCE_MAP_INT_TO_COLOR
 from .texture_gen import BoardTexturer
 from .entities import WaterTile, ShoreTile, LandMasses, Edge, Node, Tile
 from .UrsinaLighting import LitObject, LitPointLight, LitInit
@@ -103,6 +103,7 @@ class MapMaker(ursina.Entity):
 		noise_generator.regen(random.uniform(0,1))
 		island_center_points = calc_hex_grid_points_from_radius(self.map_radius+1) #Outer edge is water tiles
 		self.light_controller = LitInit() #Enable lighting shader
+		self.light_controller.eternal=True
 		self.make_board(island_center_points)
 		self.generate_tile_grid(calc_hex_grid_points_from_radius(self.map_radius))
 		# self.generate_island_shores(calc_hex_grid_points_from_radius(self.map_radius+1))
@@ -122,7 +123,18 @@ class MapMaker(ursina.Entity):
 				position=((self.origin_x+x)*settings.board_scale,0,(self.origin_z+z)*settings.board_scale)
 				p = calc_hexagon_outline_verts_from_center_point(.5*self.map_radius)
 				p = ([[i[0],settings.island_height_above_water,i[2]] for i in p[0]], p[1])
-				t = ursina.Entity(parent=self, scale=settings.board_scale, position=position, model=ursina.Mesh(vertices=(p[0]), triangles=p[1], mode='line', thickness=settings.tile_grid_thickness), color=ursina.color.rgb(0,0,0), y = 0.02)
+				t = ursina.Entity(
+					parent=self,
+					scale=settings.board_scale,
+					position=position,
+					model=ursina.Mesh(
+						vertices=(p[0]),
+						triangles=p[1],
+						mode='line',
+						thickness=settings.tile_grid_thickness,
+						),
+					add_to_scene_entities=False,
+					color=ursina.color.rgb(0,0,0), y = 0.02)
 				self.grid.append(t)
 
 	# def generate_island_shores(self, grid_points):
@@ -138,7 +150,7 @@ class MapMaker(ursina.Entity):
 	# 	for row in grid_points:
 	# 		index = 0
 	# 		for x,z in row:
-	# 			position=((self.origin_x+x),0,(self.origin_z+z))
+	# 			position=ursina.Vec3((self.origin_x+x),0,(self.origin_z+z))
 	# 			hex_verts, tris = calc_hexagon_verts_from_center_point(.5*self.map_radius)
 	# 			needed = False #If the hexagon is one of the needed ones (edges)
 	# 			#Sets to ensure vertex translations are only applied once
@@ -148,11 +160,16 @@ class MapMaker(ursina.Entity):
 	# 			verts_to_decrease_x = set()
 	# 			verts_to_decrease_z = set()
 	# 			if row_index == r:
-	# 				verts_to_cliffdrop.update({1}) #Only flag needed if on either end, will flag below
+	# 				verts_to_cliffdrop.update({1}) #Only flag needed if on either end, will flag need below if truely needed
 	# 			if row_index == 0:#If in the top row
 	# 				needed=True
 	# 				verts_to_cliffdrop.update({6,1,2})
 	# 				verts_to_increase_z.update({0,6,1,2})
+	# 			elif row_index == len(grid_points)-1:#If in the bottom row
+	# 				needed=True
+	# 				verts_to_cliffdrop.update({3,4,5})
+	# 				verts_to_decrease_z.update({0,3,4,5})
+
 	# 			if index == 0:
 	# 				needed=True
 	# 				if row_index < r:
@@ -184,11 +201,6 @@ class MapMaker(ursina.Entity):
 	# 					verts_to_cliffdrop.update({2,3,4})#Bottom Half
 	# 					verts_to_increase_x.update({0,2,3,4})
 	# 					verts_to_decrease_z.update({0,2,3,4})
-
-	# 			if row_index == len(grid_points)-1:#If in the bottom row
-	# 				needed=True
-	# 				verts_to_cliffdrop.update({3,4,5})
-	# 				verts_to_decrease_z.update({0,3,4,5})
 
 	# 			if needed:
 	# 				for v in verts_to_cliffdrop:
@@ -242,22 +254,30 @@ class MapMaker(ursina.Entity):
 						water=True,
 						cubemapIntensity = 0.75,
 						ambientStrength = 0.75,
+						eternal=True,
 					)
 				)
 
 	def generate_sky(self):
 		print("Generating Sky")
-		self.sky = ursina.Sky(model = "sphere", double_sided = True, texture = "textures/skybox.jpg", rotation = (0, 90, 0))
+		self.sky = ursina.Sky(
+			model="sphere",
+			double_sided=True,
+			texture = "textures/skybox.jpg",
+			rotation = (0, 90, 0),
+			eternal=True
+		)
 
 	def generate_lighting(self):
 		print("Generating Lighting")
-		self.lights = [
-			LitPointLight(
+		l = LitPointLight(
 				position = ursina.Vec3(settings.water_scale*10,5*(2*settings.water_subdivisions_per_axis_radius+1)*settings.water_scale,settings.water_scale*10),
 				color = ursina.color.colors["white"],
 				range=10000,
-				intensity = 8),
-		]
+				intensity = 8,
+			)
+		l.eternal=True
+		self.lights = [l]
 
 	def generate_scenery_islands(self):
 		print("Generating Islands")
@@ -396,7 +416,8 @@ class MapMaker(ursina.Entity):
 				for t2 in ts:
 					if t is t2: continue
 					t.add_neighbor_tile(t2)
-		tile_parent = ursina.Entity()
+
+		tile_parent = ursina.Entity(add_to_scene_entities=False,eternal=True)
 		#Make hexagon tiles
 		self.board_tiles = []
 		for z in range(len(tile_rows)):
@@ -407,7 +428,7 @@ class MapMaker(ursina.Entity):
 						parent = tile_parent,
 						color=t.get_resource_color(),
 						texture=bt.get_image_piece(t.x,t.z),
-						model="hexagon",
+						model="hexagon_2",
 						position=(t.x,settings.board_scale*settings.island_height_above_water,t.z),
 						scale=settings.board_scale,
 						)
@@ -416,15 +437,17 @@ class MapMaker(ursina.Entity):
 				elif type(t) is WaterTile:
 					tile = LitObject(
 						parent = tile_parent,
-						color=ursina.rgb(60,100,230),
+						color=ursina.rgb(*RESOURCE_MAP_INT_TO_COLOR[RESOURCE_WATER]),
 						texture=bt.get_image_piece(t.x,t.z),
-						model="hexagon",
+						model="hexagon_2",
 						position=(t.x,0.5*settings.board_scale*settings.island_height_above_water,t.z),
 						scale=settings.board_scale,
 						cubemapIntensity=0.75,
 						)
 					t.tile_entity = tile
 					self.board_tiles.append(tile)
+		tile_parent.combine(ignore=[e for e in ursina.scene.entities if not e in self.board_tiles])
+		tile_parent.texture = bt.image_name
 		self.game.create(tiles,edges,nodes)
 
 		for e in edges: #Determine water edges

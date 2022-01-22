@@ -1,56 +1,36 @@
-
-
-
-
-
-
-
-
-
-
 todo:
 
 BEFORE RELEASE
-
-fix island skirt
 longest road
 
-trading ports
--harbormaster
-achievement cards
-- largest army
 
+SOON:
+condense build/upgrade to one button
+permutate board pieces rotation
+option to ensure a minimum quantity of each type of tile to prevent RNG not spawning certain tiles
+chat/log/command console on bottom left
+thread texture and heightmap generation
 
+LATER:
+boats that go between islands
+bridges
+capital walls
+
+OTHER:
 
 menu box for dice roll odds
 menu box for payouts per dice roll
-
-
-thread texture and heightmap generation
-boats that go between islands
-option to ensure a minimum quantity of each type of tile to prevent RNG not spawning certain tiles
-custom boards
-water tiles
-sea tiles
-bridges
-capital walls
-permutate board pieces rotation etc
-
-chat/command console on bottom left
 
 House rules:
 	"Control of the Land" - If you own 3 nodes on a hexagon you get +1 of that resource when it is rolled, can also be a achievement card
 	"Bumper Crop" - Rolling two of the same value eg 3 + 3 for a roll of 6 makes that resource pay out double to ONLY THE CURRENT PLAYER 
 	"Toll Roads" - Connecting a road to another player's town grants + 0.5 victory points
-
-# Uncapped towns
-# Uncapped Cities
-# Uncapped Roads 
-# Infinite Board
-# Change minimum card count to trade
-# Trade some tiles pay out different amounts
-# Tiles that get rolled less frequently pay out more
-price of a building things goes up after a while
-# Disable "unlucky 7"
-
-Change names of everything 
+	# Uncapped towns
+	# Uncapped Cities
+	# Uncapped Roads 
+	# Infinite Board
+	# Change minimum card count to trade
+	# Trade some tiles pay out different amounts
+	# Tiles that get rolled less frequently pay out more
+	price of a building things goes up after a while
+	# Disable "unlucky 7"

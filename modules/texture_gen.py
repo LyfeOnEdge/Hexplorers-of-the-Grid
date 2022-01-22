@@ -37,7 +37,8 @@ class BoardTexturer:
 				elif avg > settings.board_dirt_cutoff: arr[_x][_z] = settings.board_dirt_color
 				elif avg > settings.board_sand_cutoff: arr[_x][_z] = settings.board_sand_color
 		self.image = ImageOps.mirror(Image.fromarray(np.swapaxes(np.uint8(arr),0,1)).convert('RGB')).rotate(270)
-		self.image.save(f"textures/temp/board{self.seed}.png")
+		self.image_name = f"textures/temp/board{self.seed}.png"
+		self.image.save(self.image_name)
 		return self.image
 
 	def get_image_piece(self,x,z):
