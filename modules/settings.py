@@ -58,7 +58,7 @@ def remake_settings():
 		"player_color_blue": (0,0,200),
 		"player_color_green": (0,150,30),
 		"player_color_yellow": (200,203,8),
-		"player_color_purple": (60,20,100),
+		"player_color_purple": (80,30,120),
 		"player_color_pink": (255,90,220),
 		"player_color_brown": (107, 67, 33),
 		"player_color_gray": (127,127,127),

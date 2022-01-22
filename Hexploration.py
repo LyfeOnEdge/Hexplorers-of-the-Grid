@@ -1,4 +1,4 @@
-import os, math, json, random
+import os, sys, math, json, random
 import ursina
 from collections import deque
 
@@ -183,6 +183,10 @@ class App(ursina.Ursina):
 		# model = combine(board_parent)
 		# board_parent.combine()
 
+	def exit(self):
+		print("exiting")
+		ursina.application.quit()
+
 
 class UI:
 	def __init__(self, app):
@@ -290,20 +294,6 @@ class UI:
 			k = recipes_keys[y]
 			recipe = recipes[k]
 			recipe_keys = list(recipe.keys())
-			# recipe_name_text = ursina.Text(
-			# 	parent=ursina.camera.ui,
-			# 	text=RECIPE_MAP_INT_TO_NAME[k],
-			# 	origin=(0,0),
-			# 	position=self.recipe_card.position,
-			# 	color=ursina.rgb(255,255,255),
-			# 	scale = 0.5,
-			# 	rotation_z = -7,
-			# 	z = -0.2,
-			# 	add_to_scene_entities=False,
-			# 	eternal=True,
-			# )
-			# recipe_name_text.x += 0.15 * recipe_card_width 
-			# recipe_name_text.y -= (y+0.5)/len(recipes_keys) * recipe_card_height * 0.8 + 0.25*((recipe_card_height)/len(recipes_keys)) + 0.1 * recipe_card_height
 			recipe_image = ursina.Entity(
 				model='quad',
 				texture=f'assets/textures/{RECIPE_MAP_INT_TO_NAME[k]}_icon.png',
@@ -317,35 +307,8 @@ class UI:
 				)
 			recipe_image.x += 0.175 * recipe_card_width 
 			recipe_image.y -= (y+0.5)/len(recipes_keys) * recipe_card_height * 0.8 + 0.25*((recipe_card_height)/len(recipes_keys)) + 0.075 * recipe_card_height
-
-			# if y:
-			# 	div = ursina.Entity(
-			# 		parent=ursina.camera.ui,
-			# 		model=ursina.Quad(radius=0.5, aspect=settings.ui_divider_width/settings.ui_divider_height),
-			# 		position = (self.recipe_divider.x, self.recipe_card.y),
-			# 		color= ursina.color.white66,
-			# 		scale=(settings.ui_divider_width*0.75,settings.ui_divider_height),
-			# 		origin=(0,-0.5),
-			# 		add_to_scene_entities=False,
-			# 		eternal=True,
-			# 	)
-			# 	div.y -= (y+0.2)/len(recipes_keys) * recipe_card_height * 0.8 + 0.1 * recipe_card_height
-
-
 			for x in range(len(recipe_keys)):
 				r = recipe_keys[x]
-				# r_text = ursina.Text(
-				# 	parent=ursina.camera.ui,
-				# 	text=RESOURCE_MAP_INT_TO_NAME[r],
-				# 	origin=(0,0),
-				# 	position=self.recipe_card.position,
-				# 	color=ursina.rgb(*settings.ui_recipe_text_color),
-				# 	scale = 0.5,
-				# 	rotation_z = -7,
-				# 	z = -0.2,
-				# 	add_to_scene_entities=False,
-				# 	eternal=True,
-				# )
 				r_image = ursina.Entity(
 					model='quad',
 					texture=f'assets/textures/{RESOURCE_MAP_INT_TO_NAME[r]}_icon.png',
@@ -452,7 +415,7 @@ class UI:
 		self.divider = ursina.Entity(
 			parent=ursina.camera.ui,
 			model=ursina.Quad(radius=0.5, aspect=settings.ui_divider_width/settings.ui_divider_height),
-			position = self.bottom_menu_box.position+(0,9*self.yscale/13,-0.2),
+			position = self.bottom_menu_box.position+(0,self.yscale - 3.75 * self.minute_adjust,-0.2),
 			color= ursina.color.white66,
 			scale=(settings.ui_divider_width,settings.ui_divider_height),
 			origin=(0,0),
@@ -544,7 +507,7 @@ class UI:
 				position = self.bottom_menu_box.position,
 				on_click = self.set_build_end_turn_flag,
 				origin=(0,-0.5),
-				scale = (settings.ui_divider_width,2*self.yscale/(len(buttonkeys)+1)),
+				scale = (settings.ui_divider_width,2*self.yscale/(len(buttonkeys)+1)+self.minute_adjust),
 				radius=0.2,
 				color=ursina.color.black66,
 				enabled=False,
@@ -766,11 +729,6 @@ class UI:
 		)
 		self.select_resource_menu_entities.extend([select_resource_label, select_resource_divider])
 		for e in self.select_resource_menu_entities: e.enabled = False
-
-
-
-
-
 
 		self.legend_card = ursina.Entity(
 			parent=ursina.camera.ui,
@@ -1046,6 +1004,71 @@ class UI:
 		self.actioncard_achievement_divider.y -= 2*minute_adjust
 		self.actioncard_achievement_menu = None #Gets generated each redraw
 
+
+		self.acknowledgement_menu = ursina.Entity(
+			parent=ursina.camera.ui,
+			model=ursina.Quad(radius=0.1, aspect = 2),
+			color=ursina.color.black90,
+			position=(0,0),
+			scale=(1/2,1/4),
+			origin=(0,0),
+			add_to_scene_entities=False,
+			eternal=True,
+			enabled=False
+		)
+		self.acknowledgement_text = ursina.Text(
+			parent=ursina.camera.ui,
+			text="Game Completed",
+			origin=(0,1),
+			position=self.acknowledgement_menu.position+(0,0.33*self.acknowledgement_menu.scale.y,0),
+			scale=2,
+			z = -0.2,
+			add_to_scene_entities=False,
+			eternal=True,
+			enabled=False
+		)
+		self.acknowledgement_button = ursina.Button(
+			parent=ursina.camera.ui,
+			position = self.acknowledgement_menu.position-(0,0.33*self.acknowledgement_menu.scale.y,0),
+			model=ursina.Quad(radius=0.3, aspect = 0.75*self.acknowledgement_menu.scale.x/0.035),
+			origin=(0,0),
+			scale=(0.75*self.acknowledgement_menu.scale.x, 0.035),
+			text="Continue.",
+			color=ursina.color.white10,
+			highlight_color=ursina.color.white10,
+			add_to_scene_entities=False,
+			eternal=True,
+			on_click= self.app.exit,
+			enabled=False
+		)
+		self.acknowledgement_menu_entities = [self.acknowledgement_menu, self.acknowledgement_text, self.acknowledgement_button]
+
+
+		exchange_source_label = ursina.Text(
+			parent=ursina.camera.ui,
+			text="Select exchange material source",
+			origin=(0,1),
+			position=self.exchange_source_menu.position+(0,1/8,0),
+			scale=0.75,
+			z = -0.2,
+			add_to_scene_entities=False,
+			eternal=True,
+		)
+		exchange_source_divider = ursina.Entity(
+			parent=ursina.camera.ui,
+			model=ursina.Quad(radius=0.5, aspect=settings.ui_divider_width/settings.ui_divider_height),
+			position = self.exchange_source_menu.position+(0,5/64,0),
+			color= ursina.color.white66,
+			scale=(settings.ui_divider_width,settings.ui_divider_height),
+			origin=(0,0),
+			z = -0.2,
+			add_to_scene_entities=False,
+			eternal=True,
+		)
+		self.exchange_source_menu_entities.extend([exchange_source_label, exchange_source_divider])
+
+		for e in self.exchange_source_menu_entities: e.enabled = False
+
 	def set_displayed_message(self, message):
 		self.displayed_message = message
 		self.message_ticker.text=message
@@ -1105,9 +1128,11 @@ class UI:
 	def set_build_achievement_flag(self):self.app.game.set_build_achievement_flag()
 	def set_build_trade_requested_flag(self):self.app.game.set_build_trade_requested_flag()
 	def update_achievement_card_menu(self):
-		if not self.app.game.phase in [PHASE_BUILD_AND_TRADE]: return
-		if self.app.game.build_flag in [OPTION_NATURAL_PAVIMENTUM, OPTION_BOUNTIFUL_HARVEST, OPTION_CLAIMED_PRODUCT, OPTION_USE_PATROL]: return
-		if self.current_player.action_cards:
+		act = True
+		if not self.app.game.phase in [PHASE_BUILD_AND_TRADE]: act = False
+		if self.app.game.build_flag in [OPTION_NATURAL_PAVIMENTUM, OPTION_BOUNTIFUL_HARVEST, OPTION_CLAIMED_PRODUCT, OPTION_USE_PATROL]: act = False
+
+		if self.current_player.action_cards and act:
 			scale = self.actioncard_card.scale.y/2 - (self.actioncard_divider.y-self.actioncard_card.y)
 			playable = self.app.game.check_current_player_option_availability_use_action_card()
 			self.actioncard_menu = ScrolledMenu(
@@ -1116,24 +1141,56 @@ class UI:
 				scale=(self.actioncard_card.scale.x,scale,self.actioncard_card.scale.z),
 			)
 		else:
-			pass
-			#Show empty inventory flag
-		if self.current_player.achievement_cards:
+			text = ursina.Text(
+				parent=ursina.camera.ui,
+				text="No action cards.",
+				origin=(0,0.5),
+				position=self.actioncard_divider.position - (0,self.minute_adjust,0),
+				scale=0.75,
+				add_to_scene_entities=False,
+				color=ursina.rgb(*settings.ui_inactive_color)
+			)
+
+		if self.current_player.achievement_cards and act:
 			scale = self.actioncard_card.scale.y/2 - (self.actioncard_divider.y-self.actioncard_card.y)
 			self.actioncard_achievement_menu = ScrolledMenu(
 				[(a.name, lambda a=a:print(a.name), False) for a in self.current_player.achievement_cards],
 				position=(self.actioncard_card.position.x,self.actioncard_achievement_divider.y),
 				scale=(self.actioncard_card.scale.x,scale,self.actioncard_card.scale.z),
 			)
+		else:
+			text = ursina.Text(
+				parent=ursina.camera.ui,
+				text="No achievement cards.",
+				origin=(0,0.5),
+				position=self.actioncard_achievement_divider.position - (0,self.minute_adjust,0),
+				scale=0.75,
+				add_to_scene_entities=False,
+				color=ursina.rgb(*settings.ui_inactive_color)
+			)
 
 	def update_scoreboard(self):
-		via = PLAYER_FRIENDLY_NAMES[self.app.game.via_domini] if self.app.game.via_domini else "Unclaimed"
-		portum = PLAYER_FRIENDLY_NAMES[self.app.game.portum_domini] if self.app.game.portum_domini else "Unclaimed"
-		mili = PLAYER_FRIENDLY_NAMES[self.app.game.militum_dominus] if self.app.game.militum_dominus else "Unclaimed"
+		via = PLAYER_FRIENDLY_NAMES[type(self.app.game.via_domini)] if self.app.game.via_domini else "Unclaimed"
+		portum = PLAYER_FRIENDLY_NAMES[type(self.app.game.portum_domini)] if self.app.game.portum_domini else "Unclaimed"
+		mili = PLAYER_FRIENDLY_NAMES[type(self.app.game.militum_dominus)] if self.app.game.militum_dominus else "Unclaimed"
+
+		if self.app.game.via_domini:
+			via_header = len(self.app.game.via_domini.owned_edges)+1
+		else:
+			via_header = self.app.game.min_roads_for_via_domini
+		if self.app.game.portum_domini:
+			portum_header = self.app.game.get_player_port_count(self.app.game.portum_domini) + 1
+		else:
+			portum_header = self.app.game.min_ports_for_portum_domini
+		if self.app.game.militum_dominus:
+			mil_header = self.app.game.militum_dominus.patrol_count + 1
+		else:
+			mil_header = self.app.game.min_patrols_for_militum_dominus
+			
 
 		scores = {
-			f"Via Domini ({self.app.game.min_roads_for_via_domini})" : via,
-			f"Portum Domini ({self.app.game.min_ports_for_portum_domini})" : portum,
+			f"Via Domini ({via_header})" : via,
+			f"Portum Domini ({portum_header})" : portum,
 			f"Militum Dominus ({self.app.game.min_patrols_for_militum_dominus})" : mili,
 		}
 
@@ -1163,27 +1220,42 @@ class UI:
 			)
 		if not self.app.game.players: return
 		height = (self.scoreboard_card.scale.y-(self.scoreboard_card.y-self.scoreboard_lowerdivider.y)-2*self.minute_adjust)/8
-		players = sorted(self.app.game.players, key=lambda p: self.app.game.get_player_victory_point_count(p), reverse=True)
+
+		players = sorted(self.app.game.players, key=lambda p: self.app.game.get_player_visible_victory_point_count(p) if not p is self.app.game.current_player else self.app.game.get_player_visible_victory_point_count(p), reverse=True)
 		i = 0
 		for p in players:
-
-
-			if not self.app.game.players.index(p) == 0:
+			if not i == 0:
 				div = ursina.Entity(
 					parent=ursina.camera.ui,
 					model=ursina.Quad(radius=0.5, aspect=settings.ui_divider_width/settings.ui_divider_height),
-					position=self.scoreboard_lowerdivider.position-(0,height*i+0.5*self.minute_adjust,0.1),
+					position=self.scoreboard_lowerdivider.position-(0,height*i,0.1),
 					color= ursina.color.white66,
 					scale=(settings.ui_divider_width*0.75,settings.ui_divider_height),
 					origin=(0,-0.5),
-					add_to_scene_entities=False,
-					eternal=True,
 				)
-				self.scoreboard_entities.append(div)
+			r_image = ursina.Entity(
+				model='quad',
+				texture=f'assets/textures/Town_icon.png',
+				parent=ursina.camera.ui,
+				scale=0.035,
+				color=ursina.rgb(*p.color),
+				position = self.scoreboard_lowerdivider.position-(0.5*settings.ui_divider_width,height*i,0.1),
+				origin=(-0.5,0.5)
+			)
+			v = self.app.game.get_player_visible_victory_point_count(p) if not p is self.current_player else self.app.game.get_player_victory_point_count(p)
+			txt = ursina.Text(
+				parent=ursina.camera.ui,
+				text=f"GP : {str(v)} / {self.app.game.goal_points_to_win}" ,
+				origin=(-0.5,0.5),
+				position=self.scoreboard_lowerdivider.position-(0.5*settings.ui_divider_width - r_image.scale.x,height*i+0.5*r_image.scale.y,0.1),
+				scale = 0.6,
+				ignore = True,
+			)
 			i += 1
 
-
 	def update_ui(self):
+		if self.app.game.get_current_player_victory_point_count() > self.app.game.goal_points_to_win:
+			self.show_acknowledgement_menu()
 		self.update_inventory_display()
 		self.update_achievement_card_menu()
 		self.update_scoreboard()
@@ -1202,7 +1274,49 @@ class UI:
 			self.button_texts[k].color = ursina.rgb(*text_colors[button_active])
 			self.button_texts[k].enabled = not cancel_active
 		self.end_turn_button.enabled=self.app.game.check_current_player_option_availability_end_turn()
+
+		player = self.current_player
+		via = len(self.current_player.owned_edges)
+		portum = self.app.game.get_player_port_count(self.current_player)
+		mil = self.current_player.patrol_count
+
+		text = ""
+
+		if self.current_player is self.app.game.via_domini:
+			text += f"Via Domini: Held\n"
+		else:
+			if self.app.game.via_domini:
+				text += f"Via Domini: {len(self.current_player.owned_edges)}/{len(self.app.game.via_domini.owned_edges)+1}\n"
+			else:
+				text += f"Via Domini: {len(self.current_player.owned_edges)}/{self.app.game.min_roads_for_via_domini}\n"
+
+		if self.current_player is self.app.game.portum_domini:
+			text += f"Portum Domini: Held\n"
+		else:
+			if self.app.game.portum_domini:
+				goal_ports = self.app.game.get_player_port_count(self.app.game.portum_domini)
+				player_ports = self.app.game.get_player_port_count(self.app.game.current_player)
+				text += f"Portum Domini: {player_ports}/{goal_ports+1}\n"
+			else:
+				text += f"Portum Domini: {self.app.game.get_player_port_count(self.app.game.current_player)}/{self.app.game.min_ports_for_portum_domini}\n"
+
+		if self.current_player is self.app.game.militum_dominus:
+			text += f"Militum Dominus: Held"
+		else:
+			if self.app.game.militum_dominus:
+				text += f"Militum Dominus: {self.current_player.patrol_count}/{self.app.game.militum_dominus.patrol_count + 1}\n"
+			else:
+				text += f"Militum Dominus: {self.current_player.patrol_count}/{self.app.game.min_patrols_for_militum_dominus}\n"
 		
+		txt = ursina.Text(
+			parent=ursina.camera.ui,
+			text=text,
+			origin=(-0.5,0.5),
+			position=self.divider.position-(0.5*self.divider.scale.x,self.minute_adjust,0),
+			scale = 0.6,
+			ignore = True,
+		)
+
 	def show_exchange_source_menu_for_current_player(self):
 		return self.show_exchange_source_menu_for_player(self.current_player)
 	def show_exchange_source_menu_for_player(self, player):
@@ -1257,7 +1371,12 @@ class UI:
 		self.hide_exchange_dest_menu()
 		self.hide_exchange_source_menu()
 		self.app.game.set_cancel_selection_flag()
-		
+
+	def show_acknowledgement_menu(self):
+		for e in self.acknowledgement_menu_entities: e.enabled = True
+	def hide_acknowledgement_menu(self):
+		for e in self.acknowledgement_menu_entities: e.enabled = False
+	
 
 if __name__=="__main__":
 	app = App()

@@ -52,11 +52,11 @@ class Player:
 		self.color = color
 		self.board_pieces = None
 		self.inventory = {
-			RESOURCE_CATTLE	:100,
-			RESOURCE_IRON	:100,
-			RESOURCE_WOOD	:100,
-			RESOURCE_BRICK	:100,
-			RESOURCE_WHEAT	:100,
+			RESOURCE_CATTLE	:0,
+			RESOURCE_IRON	:0,
+			RESOURCE_WOOD	:0,
+			RESOURCE_BRICK	:0,
+			RESOURCE_WHEAT	:0,
 		}
 		self.owned_edges, self.owned_nodes = [], []
 		self.resource_cards = []
@@ -192,6 +192,8 @@ class Game:
 		self.limited_tile_pool = True
 		self.ui_needs_update = True
 
+		self.goal_points_to_win = DEFAULT_NUM_GOAL_POINTS_TO_WIN
+
 		self.min_roads_for_via_domini = DEFAULT_MIN_ROADS_FOR_VIA_DOMINI
 		self.min_ports_for_portum_domini = DEFAULT_MIN_PORTS_FOR_PORTUM_DOMINI
 		self.min_patrols_for_militum_dominus = DEFAULT_MIN_PATROLS_FOR_MILITUM_DOMINUS
@@ -279,13 +281,26 @@ class Game:
 		def get_longest_road(player):
 			pass
 		pass
-	def get_player_victory_point_count(self, player):
-		vp = 0
-		for n in player.owned_nodes: vp += 1 + n.upgraded
-		return vp
 
+	def get_player_visible_victory_point_count(self, player):
+		vp = 0
+		for n in player.owned_nodes: vp +=1+n.upgraded
+		if player is self.via_domini: vp +=2
+		if player is self.portum_domini: vp +=2
+		if player is self.militum_dominus: vp +=2
+		return vp
+	def get_current_player_visible_victory_point_count(self):
+		return self.get_player_visible_victory_point_count(self.current_player)
+
+	def get_player_victory_point_count(self, player):
+		vp = self.get_player_visible_victory_point_count(player)
+		vp += len(player.achievement_cards)
+		return vp
 	def get_current_player_victory_point_count(self):
 		return self.get_player_victory_point_count(self.current_player)
+
+
+
 
 	def get_player_port_count(self, player):
 		port_count = 0
@@ -352,7 +367,7 @@ class Game:
 		############
 		elif self.phase == PHASE_ROLL:
 			if self.animation:
-				if self.animation_start + 0.25 < time.time():
+				if self.animation_start + ANIMATION_DURATION < time.time():
 					self.animation = False
 					self.animation_start = None
 				else:
@@ -701,9 +716,9 @@ class Game:
 	def player_make_purchase_road(self, player, edge):
 		self.player_make_purchase(player, RECIPE_KEY_ROAD)
 		edge.set_owner(player)
-		if len(player.owned_nodes) >= self.min_roads_for_via_domini:
+		if len(player.owned_edges) >= self.min_roads_for_via_domini:
 			if self.via_domini and not player is self.via_domini:
-				if len(player.owned_nodes) > len(self.via_domini.owned_nodes):
+				if len(player.owned_edges) > len(self.via_domini.owned_edges):
 					self.via_domini = player
 					print(f"{get_player_friendly_name(player)} now holds Via Domini")
 			else:
@@ -713,7 +728,7 @@ class Game:
 		self.player_make_purchase(player, RECIPE_KEY_SETTLEMENT)
 		node.set_owner(player)
 
-		if any([e.port for e in n.neighbor_edges]): #If the settlement was built on a port
+		if any([e.port for e in node.neighbor_edges]): #If the settlement was built on a port
 			if self.get_player_port_count(player) >= self.min_ports_for_portum_domini:
 				if self.portum_domini and not player is self.portum_domini:
 
@@ -845,8 +860,8 @@ class Game:
 		if issubclass(type(action_card), PatrolCard):
 			self.set_use_patrol_flag()
 			player.patrol_count+=1 #Increment the player's used patrol count
-			if player.patrol_count > self.min_patrols_for_militum_dominus:
-				if all(player.patrol_count > p for p in self.players if p):
+			if player.patrol_count >= self.min_patrols_for_militum_dominus:
+				if all(player.patrol_count > p.patrol_count for p in self.players if not p is player):
 					print(f"{get_player_friendly_name(player)} now holds Militum Dominus")
 					self.militum_dominus = player
 		elif issubclass(type(action_card), _BaseActionCard): 
